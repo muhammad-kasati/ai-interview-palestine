@@ -140,7 +140,8 @@ export default function LandingPage() {
             Then book a 1-on-1 session with a senior engineer from a local Palestinian tech company.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+          {/* Hero CTAs */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Link href="/signup" className="btn-neon-green text-lg" style={{ padding: '0.9rem 2.25rem' }}>
               Start Practicing Free
               <ArrowRight className="w-5 h-5" />
@@ -148,6 +149,29 @@ export default function LandingPage() {
             <Link href="#pricing" className="btn-ghost text-lg" style={{ padding: '0.9rem 2.25rem' }}>
               See Pricing
             </Link>
+          </div>
+
+          {/* Robot Interviewer Hero Graphic */}
+          <div className="relative max-w-2xl mx-auto mb-16">
+            <div className="absolute inset-0 rounded-3xl opacity-30" style={{ background: 'radial-gradient(circle at center, var(--neon-green) 0%, var(--neon-cyan) 50%, transparent 75%)', filter: 'blur(50px)' }} />
+            <div className="relative rounded-3xl overflow-hidden p-2" style={{ background: 'linear-gradient(135deg, rgba(0,255,102,0.3), rgba(0,229,255,0.3), rgba(124,58,237,0.3))', boxShadow: '0 20px 80px rgba(0,0,0,0.8)' }}>
+              <img
+                src="/robot_interviewer.png"
+                alt="AI Robot Interviewer"
+                className="w-full h-auto rounded-2xl object-cover animate-float"
+                style={{ maxHeight: '420px', objectPosition: 'center' }}
+              />
+              <div className="absolute bottom-6 left-6 right-6 glass p-4 rounded-xl flex items-center justify-between text-left border" style={{ borderColor: 'rgba(0,255,102,0.3)' }}>
+                <div className="flex items-center gap-3">
+                  <span className="pulse-dot" />
+                  <div>
+                    <div className="text-sm font-bold text-white">AI Robot Interviewer</div>
+                    <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Ready for Technical, Behavioral & System Design</div>
+                  </div>
+                </div>
+                <span className="badge-green text-xs">Live Engine</span>
+              </div>
+            </div>
           </div>
 
           {/* Stats */}
@@ -303,11 +327,11 @@ export default function LandingPage() {
           <span className="badge-purple mb-4 inline-flex">Trusted Community</span>
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">Mentors from Palestinian tech companies</h2>
           <p className="mb-10" style={{ color: 'var(--text-secondary)' }}>Senior engineers from leading local companies ready to coach you</p>
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-3">
             {companies.map((company) => (
-              <div key={company} className="px-6 py-3 rounded-xl text-sm font-semibold" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}>
+              <span key={company} className="company-pill">
                 {company}
-              </div>
+              </span>
             ))}
           </div>
         </div>

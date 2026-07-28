@@ -275,8 +275,9 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
+  padding: 1.75rem;
   transition: var(--transition-base);
+  box-sizing: border-box;
 }
 
 .card-hover:hover {
@@ -285,18 +286,45 @@ body {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 30px rgba(0, 255, 102, 0.08);
 }
 
+/* ─── Company Pill ─────────────────────────────────────────────────────────── */
+.company-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 100px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  transition: var(--transition-base);
+  box-sizing: border-box;
+}
+
+.company-pill:hover {
+  border-color: rgba(0, 255, 102, 0.4);
+  color: var(--neon-green);
+  background: rgba(0, 255, 102, 0.06);
+  box-shadow: 0 0 15px rgba(0, 255, 102, 0.15);
+  transform: translateY(-2px);
+}
+
 /* ─── Input Styles ─────────────────────────────────────────────────────────── */
 .input-dark {
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 0.9375rem;
-  padding: 0.75rem 1rem;
+  line-height: 1.5;
+  padding: 0.875rem 1.125rem;
   outline: none;
   transition: var(--transition-fast);
   width: 100%;
+  box-sizing: border-box;
 }
 
 .input-dark::placeholder {
@@ -304,9 +332,20 @@ body {
 }
 
 .input-dark:focus {
-  border-color: rgba(0, 255, 102, 0.4);
-  box-shadow: 0 0 0 3px rgba(0, 255, 102, 0.08);
-  background: rgba(0, 255, 102, 0.03);
+  border-color: rgba(0, 255, 102, 0.5);
+  box-shadow: 0 0 0 3px rgba(0, 255, 102, 0.12);
+  background: rgba(0, 255, 102, 0.04);
+}
+
+/* Chrome Autofill fix to preserve dark theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #0D1117 inset !important;
+  -webkit-text-fill-color: #F0F4F8 !important;
+  transition: background-color 5000s ease-in-out 0s;
+  border-color: rgba(0, 255, 102, 0.3) !important;
 }
 
 /* ─── Scrollbar ────────────────────────────────────────────────────────────── */

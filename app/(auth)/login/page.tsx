@@ -132,8 +132,15 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="rounded-xl p-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#FCA5A5' }}>
-                {error}
+              <div className="rounded-xl p-3.5 text-xs leading-relaxed" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#FCA5A5' }}>
+                {error.includes('fetch') ? (
+                  <>
+                    <strong>خطأ في الاتصال بـ Supabase (Failed to fetch):</strong><br />
+                    يرجى تحديث مفاتيح Supabase الحقيقية في ملف <code>.env.local</code> لأن المفاتيح الحالية لا تزال تحتوي على الروابط الافتراضية.
+                  </>
+                ) : (
+                  error
+                )}
               </div>
             )}
 
