@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import Navbar from '@/components/Navbar';
+import Sidebar from '@/components/Sidebar';
+import Topbar from '@/components/Topbar';
 
 export default async function CandidateLayout({
   children,
@@ -18,16 +19,28 @@ export default async function CandidateLayout({
     .eq('id', user.id)
     .single();
 
+  const { data: subscription } = await supabase
+    .from('subscriptions')
+    .select('tier')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .single();
+
   return (
-    <div className="min-h-screen bg-grid" style={{ background: 'var(--bg-base)' }}>
-      <Navbar
+    <div className="app-shell" style={{ background: 'var(--bg-base)' }}>
+      <Sidebar
         userRole={profile?.role ?? 'candidate'}
         userName={profile?.full_name ?? user.email ?? 'User'}
+        userEmail={user.email}
         avatarUrl={profile?.avatar_url}
+        currentTier={subscription?.tier ?? 'free'}
       />
-      <main className="container-page py-8">
-        {children}
-      </main>
+      <div className="main-content">
+        <Topbar />
+        <main className="page-container">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

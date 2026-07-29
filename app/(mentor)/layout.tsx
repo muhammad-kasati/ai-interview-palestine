@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import Navbar from '@/components/Navbar';
+import Sidebar from '@/components/Sidebar';
+import Topbar from '@/components/Topbar';
 
 export default async function MentorLayout({
   children,
@@ -18,21 +19,24 @@ export default async function MentorLayout({
     .eq('id', user.id)
     .single();
 
-  // Only mentor or admin can access
   if (profile?.role !== 'mentor' && profile?.role !== 'admin') {
     redirect('/dashboard');
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-base)' }}>
-      <Navbar
+    <div className="app-shell" style={{ background: 'var(--bg-base)' }}>
+      <Sidebar
         userRole={profile?.role ?? 'mentor'}
         userName={profile?.full_name ?? user.email ?? 'Mentor'}
+        userEmail={user.email}
         avatarUrl={profile?.avatar_url}
       />
-      <main className="container-page py-8">
-        {children}
-      </main>
+      <div className="main-content">
+        <Topbar />
+        <main className="page-container">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
