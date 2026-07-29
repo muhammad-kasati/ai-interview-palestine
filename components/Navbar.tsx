@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   Zap, LayoutDashboard, Video, Users, LogOut,
-  Menu, X, ChevronDown, Shield, Star
+  Menu, X, ChevronDown, Shield, Star, Clock, User, Calendar
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -29,13 +29,15 @@ export default function Navbar({ userRole = 'candidate', userName, avatarUrl }: 
   }
 
   const candidateLinks = [
-    { href: '/dashboard',          label: 'Dashboard',  Icon: LayoutDashboard },
-    { href: '/interview/new',      label: 'Interview',  Icon: Video },
-    { href: '/mentors',            label: 'Mentors',    Icon: Users },
+    { href: '/dashboard',          label: 'Dashboard',   Icon: LayoutDashboard },
+    { href: '/interview/new',      label: 'Interview',   Icon: Video },
+    { href: '/mentors',            label: 'Mentors',     Icon: Users },
   ];
   const mentorLinks = [
-    { href: '/mentor/dashboard',   label: 'Dashboard',  Icon: LayoutDashboard },
-    { href: '/mentor/availability',label: 'Availability',Icon: Star },
+    { href: '/mentor/dashboard',   label: 'Dashboard',   Icon: LayoutDashboard },
+    { href: '/mentor/sessions',    label: 'Sessions',    Icon: Calendar },
+    { href: '/mentor/availability',label: 'Availability', Icon: Clock },
+    { href: '/mentor/profile',     label: 'Profile',      Icon: User },
   ];
   const adminLinks = [
     { href: '/admin/dashboard',    label: 'Admin',      Icon: Shield },

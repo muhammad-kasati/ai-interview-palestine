@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
   Calendar, Clock, DollarSign, Star, Users, CheckCircle,
-  Edit3, Save, Plus, Trash2, AlertCircle, Loader2
+  Edit3, Save, Plus, Trash2, AlertCircle, Loader2, User
 } from 'lucide-react';
 import { DAY_NAMES } from '@/lib/types';
 
@@ -67,21 +68,30 @@ export default function MentorDashboardClient({
     <div className="max-w-5xl mx-auto space-y-8">
 
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.3), rgba(0,229,255,0.3))' }}>
-          {(profile?.full_name ?? 'M').charAt(0)}
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-white">{profile?.full_name ?? 'Mentor'}</h1>
-            {mentor?.verified ? (
-              <span className="badge-green text-xs">✓ Verified</span>
-            ) : (
-              <span className="badge-purple text-xs">Pending Review</span>
-            )}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black shrink-0" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.3), rgba(0,229,255,0.3))' }}>
+            {(profile?.full_name ?? 'M').charAt(0)}
           </div>
-          <p style={{ color: 'var(--text-secondary)' }}>{profile?.title ?? 'Mentor'} · {profile?.company ?? ''}</p>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-black text-white">{profile?.full_name ?? 'Mentor'}</h1>
+              {mentor?.verified ? (
+                <span className="badge-green text-xs">✓ Verified</span>
+              ) : (
+                <span className="badge-purple text-xs">Pending Review</span>
+              )}
+            </div>
+            <p style={{ color: 'var(--text-secondary)' }}>{profile?.title ?? 'Mentor'} · {profile?.company ?? ''}</p>
+          </div>
         </div>
+
+        <Link
+          href="/mentor/profile"
+          className="btn-ghost text-xs py-2 px-4 inline-flex items-center gap-2 self-start sm:self-auto"
+        >
+          <User className="w-3.5 h-3.5 text-neon-cyan" /> Edit Profile & Rates
+        </Link>
       </div>
 
       {/* Not yet verified notice */}
@@ -259,9 +269,17 @@ export default function MentorDashboardClient({
               );
             })}
           </div>
-          <p className="text-sm mt-4" style={{ color: 'var(--text-muted)' }}>
-            Contact support to update your availability schedule.
-          </p>
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/5">
+            <p className="text-xs text-text-muted">
+              Configure your exact time slots and timezone.
+            </p>
+            <Link
+              href="/mentor/availability"
+              className="btn-neon-green text-xs py-2 px-4 inline-flex items-center gap-1.5"
+            >
+              <Clock className="w-3.5 h-3.5" /> Edit Availability Schedule
+            </Link>
+          </div>
         </div>
       )}
 

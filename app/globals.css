@@ -1,6 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --color-bg-base: #050608;
+  --color-bg-surface: #0A0D12;
+  --color-bg-elevated: #0F1318;
+  --color-bg-card: rgba(15, 19, 24, 0.80);
+
+  --color-neon-green: #00FF66;
+  --color-neon-green-dim: #10B981;
+  --color-neon-cyan: #00E5FF;
+  --color-neon-blue: #0066FF;
+  --color-neon-purple: #7C3AED;
+
+  --color-text-primary: #F0F4F8;
+  --color-text-secondary: #8B9AAD;
+  --color-text-muted: #4A5568;
+
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-glow: rgba(0, 255, 102, 0.25);
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
 /* ─── Design Tokens ────────────────────────────────────────────────────────── */
 :root {
   /* Backgrounds */
@@ -53,8 +76,6 @@
 /* ─── Base Reset ───────────────────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html {
