@@ -1,308 +1,49 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { useDropzone } from 'react-dropzone';
-import {
-  UploadCloud, Loader2, Mic, Video, Users, Brain,
-  Code2, ChevronRight, FileText, Star, Zap, Globe
-} from 'lucide-react';
+import { useState } from 'react';
+import { BriefcaseBusiness, Building2, ChevronDown, FileText, Globe2, Play, Plus, Sparkles, Target, X } from 'lucide-react';
 
 type JobRole = 'fullstack' | 'backend' | 'frontend' | 'mobile' | 'devops' | 'system_design' | 'data_engineer' | 'ml_engineer';
 type ExperienceLevel = 'junior' | 'mid' | 'senior';
-type InterviewMode = 'free' | 'audio' | 'video' | 'human';
-type TargetMarket = 'local_palestine' | 'global_remote';
+interface InterviewConfig { jobRole: JobRole; experienceLevel: ExperienceLevel; techStack: string[]; mode: 'free'; targetMarket: 'local_palestine' | 'global_remote'; }
+interface SetupWizardProps { onStart: (config: InterviewConfig) => void; }
 
-const JOB_ROLES: { value: JobRole; label: string; icon: string }[] = [
-  { value: 'fullstack',    label: 'Full-Stack',      icon: '⚡' },
-  { value: 'backend',     label: 'Backend',         icon: '🔧' },
-  { value: 'frontend',    label: 'Frontend',        icon: '🎨' },
-  { value: 'mobile',      label: 'Mobile Dev',      icon: '📱' },
-  { value: 'devops',      label: 'DevOps / SRE',    icon: '☁️' },
-  { value: 'system_design', label: 'System Design', icon: '🏗️' },
-  { value: 'data_engineer', label: 'Data Engineer', icon: '📊' },
-  { value: 'ml_engineer', label: 'ML Engineer',     icon: '🤖' },
-];
-
-const TECH_TAGS = [
-  'React', 'Next.js', 'TypeScript', 'Node.js', 'Python', 'Java', 'Go', 'Rust',
-  'PostgreSQL', 'MongoDB', 'Redis', 'Docker', 'Kubernetes', 'AWS', 'GraphQL',
-  'React Native', 'Flutter', 'Spring Boot', 'Django', 'FastAPI', 'Linux', 'Git',
-];
-
-const MODES: { value: InterviewMode; label: string; desc: string; badge: string; badgeClass: string; Icon: React.ElementType; color: string; tier: string }[] = [
-  { value: 'free',   label: 'Text AI',      desc: 'Chat-based Q&A',       badge: 'Free',     badgeClass: 'badge-green',  Icon: Brain, color: 'var(--neon-green)', tier: 'free' },
-  { value: 'audio',  label: 'Audio AI',     desc: 'Voice via Vapi.ai',    badge: 'Standard', badgeClass: 'badge-green',  Icon: Mic,   color: 'var(--neon-green)', tier: 'standard' },
-  { value: 'video',  label: 'Video Avatar', desc: 'Face-to-face Tavus',   badge: 'Premium',  badgeClass: 'badge-cyan',   Icon: Video, color: 'var(--neon-cyan)',  tier: 'premium' },
-  { value: 'human',  label: 'Human Mentor', desc: '1-on-1 real session',  badge: 'Human',    badgeClass: 'badge-purple', Icon: Users, color: '#A78BFA',           tier: 'human' },
-];
-
-interface SetupWizardProps {
-  onStart: (config: InterviewConfig) => void;
-}
-
-interface InterviewConfig {
-  jobRole: JobRole;
-  experienceLevel: ExperienceLevel;
-  techStack: string[];
-  mode: InterviewMode;
-  targetMarket: TargetMarket;
-  resumeUrl?: string;
-}
+const roles: { value: JobRole; label: string }[] = [{ value: 'fullstack', label: 'Full-Stack Developer' }, { value: 'frontend', label: 'Frontend Developer' }, { value: 'backend', label: 'Backend Developer' }, { value: 'mobile', label: 'Mobile Developer' }, { value: 'devops', label: 'DevOps / SRE' }, { value: 'system_design', label: 'System Design' }, { value: 'data_engineer', label: 'Data Engineer' }, { value: 'ml_engineer', label: 'ML Engineer' }];
+const recommendedSkills = ['Next.js', 'React', 'TypeScript', 'Node.js', 'Git', 'GitHub', 'OOP', 'Data Structures', 'SQL', 'MongoDB', 'REST APIs', 'HTML', 'CSS', 'JavaScript'];
 
 export default function SetupWizard({ onStart }: SetupWizardProps) {
-  const [jobRole, setJobRole]             = useState<JobRole>('fullstack');
-  const [expLevel, setExpLevel]           = useState<ExperienceLevel>('junior');
-  const [techStack, setTechStack]         = useState<string[]>([]);
-  const [mode, setMode]                   = useState<InterviewMode>('free');
-  const [targetMarket, setTargetMarket]   = useState<TargetMarket>('local_palestine');
-  const [resumeFile, setResumeFile]       = useState<File | null>(null);
-  const [uploading, setUploading]         = useState(false);
-  const [parsing, setParsing]             = useState(false);
-  const [extractedSkills, setExtractedSkills] = useState<string[]>([]);
-  const [starting, setStarting]           = useState(false);
+  const [tab, setTab] = useState<'practice' | 'company'>('practice');
+  const [jobRole, setJobRole] = useState<JobRole>('fullstack');
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>('mid');
+  const [skills, setSkills] = useState(['Next.js', 'React', 'Git', 'GitHub', 'OOP', 'Data Structures', 'SQL', 'MongoDB', 'REST APIs', 'HTML', 'CSS', 'JavaScript']);
+  const [skillInput, setSkillInput] = useState('');
+  const [difficulty, setDifficulty] = useState('medium');
+  const [market, setMarket] = useState<'local_palestine' | 'global_remote'>('global_remote');
+  const [company, setCompany] = useState('');
+  const [targetRole, setTargetRole] = useState('');
+  const addSkill = (skill = skillInput.trim()) => { if (skill && !skills.includes(skill)) setSkills((current) => [...current, skill]); setSkillInput(''); };
+  const removeSkill = (skill: string) => setSkills((current) => current.filter((item) => item !== skill));
 
-  const onDrop = useCallback(async (accepted: File[]) => {
-    const file = accepted[0];
-    if (!file) return;
-    setResumeFile(file);
-    setParsing(true);
-
-    try {
-      const formData = new FormData();
-      formData.append('resume', file);
-      const res = await fetch('/api/resume/parse', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.skills) {
-        setExtractedSkills(data.skills);
-        setTechStack(data.skills.slice(0, 6));
-      }
-    } catch {
-      // Silently fail — user can select manually
-    } finally {
-      setParsing(false);
-    }
-  }, []);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: { 'application/pdf': ['.pdf'] },
-    maxFiles: 1,
-  });
-
-  function toggleTag(tag: string) {
-    setTechStack((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  }
-
-  async function handleStart() {
-    setStarting(true);
-    onStart({ jobRole, experienceLevel: expLevel, techStack, mode, targetMarket });
-  }
-
-  return (
-    <div className="space-y-8">
-
-      {/* ── Resume Upload ── */}
-      <div className="card rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-          <FileText className="w-5 h-5" style={{ color: 'var(--neon-green)' }} />
-          Resume Upload
-          <span className="text-xs font-normal ml-1" style={{ color: 'var(--text-muted)' }}>(optional — Gemini will parse it)</span>
-        </h2>
-
-        <div
-          {...getRootProps()}
-          className="mt-4 rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition-all"
-          style={{
-            borderColor: isDragActive ? 'rgba(0,255,102,0.5)' : 'rgba(255,255,255,0.1)',
-            background:  isDragActive ? 'rgba(0,255,102,0.04)' : 'transparent',
-          }}
-        >
-          <input {...getInputProps()} id="resume-upload" />
-          {parsing ? (
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--neon-green)' }} />
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Gemini is parsing your resume…</p>
-            </div>
-          ) : resumeFile ? (
-            <div className="flex flex-col items-center gap-2">
-              <FileText className="w-8 h-8" style={{ color: 'var(--neon-green)' }} />
-              <p className="text-sm font-medium text-white">{resumeFile.name}</p>
-              {extractedSkills.length > 0 && (
-                <p className="text-xs" style={{ color: 'var(--neon-green)' }}>
-                  ✓ Extracted {extractedSkills.length} skills
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3">
-              <UploadCloud className="w-8 h-8" style={{ color: 'var(--text-muted)' }} />
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Drag & drop your PDF resume, or <span style={{ color: 'var(--neon-green)' }}>click to browse</span>
-              </p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>PDF only · Max 5MB</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Job Role ── */}
-      <div className="card rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Code2 className="w-5 h-5" style={{ color: 'var(--neon-cyan)' }} />
-          Job Role
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {JOB_ROLES.map(({ value, label, icon }) => (
-            <button
-              key={value}
-              onClick={() => setJobRole(value)}
-              id={`role-${value}`}
-              className="p-3 rounded-xl text-sm font-medium text-left transition-all"
-              style={{
-                background: jobRole === value ? 'rgba(0,229,255,0.08)' : 'rgba(255,255,255,0.03)',
-                border: jobRole === value ? '1px solid rgba(0,229,255,0.4)' : '1px solid rgba(255,255,255,0.07)',
-                color: jobRole === value ? 'var(--neon-cyan)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
-            >
-              <span className="text-base mb-1 block">{icon}</span>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Experience Level ── */}
-      <div className="card rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Star className="w-5 h-5" style={{ color: 'var(--neon-green)' }} />
-          Experience Level
-        </h2>
-        <div className="flex gap-3">
-          {(['junior', 'mid', 'senior'] as ExperienceLevel[]).map((lvl) => (
-            <button
-              key={lvl}
-              onClick={() => setExpLevel(lvl)}
-              id={`level-${lvl}`}
-              className="flex-1 py-3 px-5 rounded-xl font-medium text-sm capitalize transition-all"
-              style={{
-                background: expLevel === lvl ? 'rgba(0,255,102,0.12)' : 'rgba(255,255,255,0.03)',
-                border: expLevel === lvl ? '1px solid rgba(0,255,102,0.4)' : '1px solid rgba(255,255,255,0.07)',
-                color: expLevel === lvl ? 'var(--neon-green)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
-            >
-              {lvl === 'mid' ? 'Mid-Level' : lvl.charAt(0).toUpperCase() + lvl.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Tech Stack ── */}
-      <div className="card rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-          <Zap className="w-5 h-5" style={{ color: 'var(--neon-green)' }} />
-          Tech Stack
-        </h2>
-        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
-          {techStack.length > 0 ? `${techStack.length} selected` : 'Select your technologies'}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {TECH_TAGS.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => toggleTag(tag)}
-              id={`tag-${tag.toLowerCase().replace('.', '-')}`}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
-              style={{
-                background: techStack.includes(tag) ? 'rgba(0,255,102,0.12)' : 'rgba(255,255,255,0.04)',
-                border: techStack.includes(tag) ? '1px solid rgba(0,255,102,0.4)' : '1px solid rgba(255,255,255,0.08)',
-                color: techStack.includes(tag) ? 'var(--neon-green)' : 'var(--text-muted)',
-                cursor: 'pointer',
-              }}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Target Market ── */}
-      <div className="card rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Globe className="w-5 h-5" style={{ color: 'var(--neon-cyan)' }} />
-          Target Market
-        </h2>
-        <div className="flex gap-3">
-          {([
-            { value: 'local_palestine', label: '🇵🇸 Palestinian Local',    desc: 'Gaza, WB, local tech companies' },
-            { value: 'global_remote',  label: '🌐 Global Remote',          desc: 'International & remote roles' },
-          ] as { value: TargetMarket; label: string; desc: string }[]).map(({ value, label, desc }) => (
-            <button
-              key={value}
-              onClick={() => setTargetMarket(value)}
-              id={`market-${value}`}
-              className="flex-1 p-4 rounded-xl text-left transition-all"
-              style={{
-                background: targetMarket === value ? 'rgba(0,229,255,0.06)' : 'rgba(255,255,255,0.03)',
-                border: targetMarket === value ? '1px solid rgba(0,229,255,0.35)' : '1px solid rgba(255,255,255,0.07)',
-                cursor: 'pointer',
-              }}
-            >
-              <div className="font-semibold text-sm text-white mb-1">{label}</div>
-              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{desc}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Interview Mode ── */}
-      <div className="card rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Mic className="w-5 h-5" style={{ color: 'var(--neon-green)' }} />
-          Interview Mode
-        </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {MODES.map(({ value, label, desc, badge, badgeClass, Icon, color }) => (
-            <button
-              key={value}
-              onClick={() => setMode(value)}
-              id={`mode-${value}`}
-              className="p-4 rounded-xl text-left transition-all"
-              style={{
-                background: mode === value ? `${color}14` : 'rgba(255,255,255,0.03)',
-                border: mode === value ? `1px solid ${color}55` : '1px solid rgba(255,255,255,0.07)',
-                cursor: 'pointer',
-              }}
-            >
-              <Icon className="w-6 h-6 mb-3" style={{ color: mode === value ? color : 'var(--text-muted)' }} />
-              <div className={`${badgeClass} text-xs mb-2`}>{badge}</div>
-              <div className="font-semibold text-sm text-white">{label}</div>
-              <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{desc}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Start Button ── */}
-      <button
-        id="btn-start-interview"
-        onClick={handleStart}
-        disabled={starting || techStack.length === 0}
-        className="btn-neon-green w-full justify-center text-lg"
-        style={{ padding: '1rem', opacity: (starting || techStack.length === 0) ? 0.6 : 1 }}
-      >
-        {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-5 h-5" />}
-        {starting ? 'Creating session…' : 'Start Interview Session'}
-      </button>
-      {techStack.length === 0 && (
-        <p className="text-center text-sm" style={{ color: 'var(--text-muted)', marginTop: '-1rem' }}>
-          Please select at least one technology
-        </p>
-      )}
+  return <div className="card rounded-2xl overflow-hidden">
+    <div className="flex border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+      {(['practice', 'company'] as const).map((name) => <button key={name} onClick={() => setTab(name)} className="px-5 py-3 text-sm font-semibold capitalize border-b-2 transition-colors" style={{ borderColor: tab === name ? 'var(--neon-cyan)' : 'transparent', color: tab === name ? 'var(--neon-cyan)' : 'var(--text-secondary)' }}>{name === 'practice' ? '⚡ Practice' : '◎ Company'}</button>)}
+      <span className="ml-auto self-center mr-5 text-xs" style={{ color: 'var(--text-muted)' }}>Tailored interview setup</span>
     </div>
-  );
+    <div className="p-5 sm:p-7 space-y-6">
+      {tab === 'practice' ? <>
+        <div className="grid md:grid-cols-2 gap-4"><Select label="Job Title / Role" required Icon={BriefcaseBusiness} value={jobRole} onChange={(value) => setJobRole(value as JobRole)} options={roles.map((role) => [role.value, role.label])} /><Select label="Interview Round" required Icon={Target} value="technical" onChange={() => {}} options={[["technical", "Technical Round"], ["behavioral", "Behavioral Round"], ["system", "System Design"]]} /></div>
+        <div className="grid md:grid-cols-2 gap-4"><Select label="Experience Level" required Icon={BriefcaseBusiness} value={experienceLevel} onChange={(value) => setExperienceLevel(value as ExperienceLevel)} options={[["junior", "Junior · 0–2 years"], ["mid", "Mid Level · 2–5 years"], ["senior", "Senior · 5+ years"]]} /><div><Label text="Difficulty Level" /><div className="flex gap-2">{[['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']].map(([value, label]) => <button key={value} onClick={() => setDifficulty(value)} className="flex-1 py-2 rounded-lg text-xs font-semibold" style={{ background: difficulty === value ? 'rgba(0,194,255,.14)' : 'rgba(255,255,255,.04)', border: `1px solid ${difficulty === value ? 'rgba(0,194,255,.4)' : 'var(--border-subtle)'}`, color: difficulty === value ? 'var(--neon-cyan)' : 'var(--text-secondary)' }}>{label}</button>)}</div></div></div>
+        <SkillPicker skills={skills} input={skillInput} setInput={setSkillInput} add={addSkill} remove={removeSkill} />
+        <ResumeCard />
+        <details className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,.025)', border: '1px solid var(--border-subtle)' }}><summary className="cursor-pointer text-sm font-semibold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-neon-cyan" /> Customize your interview <span className="text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>Optional</span></summary><div className="flex flex-wrap gap-2 mt-4"><Pill text="Add job description" /><Pill text="English" /><Pill text="45 minutes" /><Pill text="Global remote" /></div></details>
+      </> : <div className="space-y-5"><div><h2 className="text-lg font-bold text-white">Company research</h2><p className="text-sm mt-1">Add company context to generate more relevant interview questions.</p></div><div className="grid md:grid-cols-2 gap-4"><Input label="Company name" value={company} setValue={setCompany} placeholder="e.g. Google, Amazon, Meta" /><Input label="Target role" value={targetRole} setValue={setTargetRole} placeholder="e.g. Freelance Web Developer" /></div><div className="grid md:grid-cols-2 gap-4"><Select label="Target market" value={market} onChange={(value) => setMarket(value as typeof market)} options={[["global_remote", "Global / Remote"], ["local_palestine", "Palestinian local market"]]} /><Input label="Location" value="" setValue={() => {}} placeholder="e.g. Remote, Ramallah, Gaza" /></div><div className="rounded-xl p-4 text-sm" style={{ background: 'rgba(0,194,255,.06)', border: '1px solid rgba(0,194,255,.16)', color: 'var(--text-secondary)' }}>Company research will influence the examples and scenarios in your interview. You can continue without completing these fields.</div></div>}
+      <button disabled={skills.length === 0} onClick={() => onStart({ jobRole, experienceLevel, techStack: skills, mode: 'free', targetMarket: market })} className="btn-cyan w-full justify-center py-3 text-sm disabled:opacity-50"><Play className="w-4 h-4" /> Start Interview</button>
+    </div>
+  </div>;
 }
+function Label({ text, required }: { text: string; required?: boolean }) { return <div className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-primary)' }}>{text} {required && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px]" style={{ background: 'rgba(0,194,255,.12)', color: 'var(--neon-cyan)' }}>Required</span>}</div>; }
+function Select({ label, value, onChange, options, required, Icon }: { label: string; value: string; onChange: (value: string) => void; options: string[][]; required?: boolean; Icon?: React.ElementType }) { return <div><Label text={label} required={required} /><div className="relative">{Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />}<select value={value} onChange={(e) => onChange(e.target.value)} className="input-dark appearance-none pr-9" style={{ paddingLeft: Icon ? '2.4rem' : undefined }}>{options.map(([key, text]) => <option key={key} value={key}>{text}</option>)}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: 'var(--text-muted)' }} /></div></div>; }
+function Input({ label, value, setValue, placeholder }: { label: string; value: string; setValue: (value: string) => void; placeholder: string }) { return <div><Label text={label} /><input className="input-dark" value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} /></div>; }
+function SkillPicker({ skills, input, setInput, add, remove }: { skills: string[]; input: string; setInput: (value: string) => void; add: (value?: string) => void; remove: (value: string) => void }) { return <div><Label text="Key Skills" required /><p className="text-xs mb-2">Questions focus on these skills, not unrelated technologies.</p><div className="rounded-xl p-2 flex flex-wrap gap-1.5" style={{ border: '1px solid var(--border-medium)', background: 'rgba(255,255,255,.02)' }}>{skills.map((skill) => <button onClick={() => remove(skill)} key={skill} className="px-2 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1" style={{ background: 'rgba(245,158,11,.14)', color: 'var(--text-primary)' }}>{skill}<X className="w-3 h-3" /></button>)}<input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} className="bg-transparent outline-none text-xs min-w-24 flex-1 px-1" placeholder="Add more…" /></div><div className="flex flex-wrap gap-2 mt-2"><button onClick={() => add()} className="btn-ghost text-xs py-1.5 px-3"><Plus className="w-3 h-3" /> Add skill</button>{recommendedSkills.filter((skill) => !skills.includes(skill)).slice(0, 4).map((skill) => <button key={skill} onClick={() => add(skill)} className="text-xs px-2 py-1 rounded-md" style={{ background: 'rgba(255,255,255,.05)', color: 'var(--text-secondary)' }}>+ {skill}</button>)}</div></div>; }
+function ResumeCard() { return <div><Label text="Resume" /><div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'rgba(0,194,255,.045)', border: '1px solid rgba(0,194,255,.25)' }}><div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(0,194,255,.12)' }}><FileText className="w-4 h-4 text-neon-cyan" /></div><div className="flex-1"><p className="text-sm font-semibold text-white">Add your resume</p><p className="text-xs">Optional — questions can be tailored to your experience.</p></div><label className="btn-ghost text-xs cursor-pointer">Choose file<input type="file" accept="application/pdf" className="hidden" /></label></div></div>; }
+function Pill({ text }: { text: string }) { return <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(255,255,255,.06)', color: 'var(--text-secondary)' }}>{text}</span>; }

@@ -1,6 +1,8 @@
-import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+import NewInterviewClient from './NewInterviewClient';
 
-// /interview/new → redirect user back to dashboard where the SetupWizard lives
+export const metadata: Metadata = { title: 'New Interview', description: 'Configure and start an AI mock interview.' };
+
 export default function NewInterviewPage() {
-  redirect('/dashboard');
+  return <NewInterviewClient />;
 }

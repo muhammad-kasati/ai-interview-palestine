@@ -156,7 +156,7 @@ export default function DashboardClient({ userName, recentInterviews, currentTie
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div id="analytics" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
             label: 'Total Sessions',
@@ -232,7 +232,7 @@ export default function DashboardClient({ userName, recentInterviews, currentTie
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Recent Interviews */}
-        <div className="lg:col-span-2 card p-4">
+        <div id="recent-interviews" className="lg:col-span-2 card p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-white flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4" style={{ color: 'var(--neon-cyan)' }} />

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   Zap, LayoutDashboard, Video, Users, LogOut,
   Settings, User, CreditCard, HelpCircle, ChevronRight,
-  Shield, Calendar, Clock, Star, Menu, X
+  Shield, Calendar, Clock, Star, Menu, X, Gift
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,7 +23,14 @@ const candidateSections = [
     label: 'Core',
     links: [
       { href: '/dashboard',     label: 'Dashboard',     Icon: LayoutDashboard },
-      { href: '/interview/new', label: 'New Interview',  Icon: Video },
+      {
+        href: '/interview/new', label: 'AI Interview', Icon: Video,
+        children: [
+          { href: '/interview/new', label: 'Start Interview' },
+          { href: '/dashboard#recent-interviews', label: 'Recent Interviews' },
+          { href: '/dashboard#analytics', label: 'Interview Analytics' },
+        ],
+      },
       { href: '/mentors',       label: 'Mentors',        Icon: Users },
     ],
   },
@@ -32,6 +39,7 @@ const candidateSections = [
     links: [
       { href: '/profile',       label: 'Profile',        Icon: User },
       { href: '/subscription',  label: 'Subscription',   Icon: CreditCard },
+      { href: '/referrals',     label: 'Refer Friends',  Icon: Gift },
     ],
   },
   {
@@ -135,20 +143,18 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
         {sections.map((section) => (
           <div key={section.label}>
             <div className="sidebar-section-label">{section.label}</div>
-            {section.links.map(({ href, label, Icon }) => {
+            {section.links.map(({ href, label, Icon, children }) => {
               const isActive = pathname === href || (href !== '/dashboard' && href !== '/mentor/dashboard' && pathname.startsWith(href));
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`sidebar-link ${isActive ? 'active' : ''}`}
-                >
+              return <div key={href}>
+                <Link href={href} onClick={() => setMobileOpen(false)} className={`sidebar-link ${isActive ? 'active' : ''}`}>
                   <Icon className="sidebar-icon" />
                   <span className="flex-1">{label}</span>
-                  {isActive && <ChevronRight className="w-3 h-3 opacity-50" />}
+                  {children ? <ChevronRight className={`w-3 h-3 transition-transform ${isActive ? 'rotate-90' : ''}`} /> : isActive && <ChevronRight className="w-3 h-3 opacity-50" />}
                 </Link>
-              );
+                {children && isActive && <div className="ml-7 mb-1 border-l" style={{ borderColor: 'var(--border-medium)' }}>
+                  {children.map((child) => <Link key={child.href} href={child.href} onClick={() => setMobileOpen(false)} className="block py-1.5 pl-3 text-[11px] transition-colors" style={{ color: pathname === child.href ? 'var(--neon-green)' : 'var(--text-secondary)' }}>{child.label}</Link>)}
+                </div>}
+              </div>;
             })}
           </div>
         ))}

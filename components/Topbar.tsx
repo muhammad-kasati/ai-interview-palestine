@@ -13,6 +13,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/mentors':            'Find a Mentor',
   '/profile':            'Profile',
   '/subscription':       'Subscription',
+  '/referrals':          'Refer Friends',
+  '/help':               'Help & Support',
   '/mentor/dashboard':   'Mentor Dashboard',
   '/mentor/sessions':    'Sessions',
   '/mentor/availability':'Availability',
