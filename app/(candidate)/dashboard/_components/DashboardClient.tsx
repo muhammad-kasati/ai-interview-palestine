@@ -7,7 +7,7 @@ import SetupWizard from './SetupWizard';
 import {
   Clock, CheckCircle, XCircle, Loader2, TrendingUp,
   Zap, Video, Users, ArrowRight, BarChart2, Target,
-  Calendar, Star, RefreshCw
+  Calendar, Star, RefreshCw, Gift, X
 } from 'lucide-react';
 
 interface Interview {
@@ -50,6 +50,7 @@ export default function DashboardClient({ userName, recentInterviews, currentTie
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
+  const [showReferralBanner, setShowReferralBanner] = useState(true);
 
   async function handleStartInterview(config: InterviewConfig) {
     setCreating(true);
@@ -126,7 +127,7 @@ export default function DashboardClient({ userName, recentInterviews, currentTie
             ← Back to Dashboard
           </button>
         </div>
-        <SetupWizard onStart={handleStartInterview as any} />
+        <SetupWizard onStart={handleStartInterview as never} />
       </div>
     );
   }
@@ -199,6 +200,15 @@ export default function DashboardClient({ userName, recentInterviews, currentTie
           </div>
         ))}
       </div>
+
+      {showReferralBanner && (
+        <div className="card p-4 flex flex-col sm:flex-row sm:items-center gap-4" style={{ background: 'linear-gradient(90deg, rgba(0,194,255,0.08), rgba(0,217,126,0.04))', borderColor: 'rgba(0,194,255,0.2)' }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(0,194,255,0.12)' }}><Gift className="w-5 h-5 text-neon-cyan" /></div>
+          <div className="flex-1"><h2 className="text-sm font-bold text-white">Earn free interview sessions</h2><p className="text-xs mt-1">Refer a friend and earn 2 bonus interview credits when they complete their first practice session.</p></div>
+          <Link href="/referrals" className="btn-cyan self-start sm:self-auto"><Gift className="w-4 h-4" /> Refer friends <ArrowRight className="w-4 h-4" /></Link>
+          <button onClick={() => setShowReferralBanner(false)} className="self-start sm:self-auto p-1 cursor-pointer" style={{ color: 'var(--text-muted)' }} aria-label="Dismiss referral banner"><X className="w-4 h-4" /></button>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="card p-4">

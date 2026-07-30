@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   Zap, LayoutDashboard, Video, Users, LogOut,
-  Settings, User, CreditCard, HelpCircle, ChevronRight,
+  User, CreditCard, HelpCircle, ChevronRight,
   Shield, Calendar, Clock, Star, Menu, X, Gift
 } from 'lucide-react';
 
@@ -18,7 +18,16 @@ interface SidebarProps {
   currentTier?: string;
 }
 
-const candidateSections = [
+interface NavigationLink {
+  href: string;
+  label: string;
+  Icon: React.ElementType;
+  children?: { href: string; label: string }[];
+}
+
+interface NavigationSection { label: string; links: NavigationLink[]; }
+
+const candidateSections: NavigationSection[] = [
   {
     label: 'Core',
     links: [
@@ -27,8 +36,8 @@ const candidateSections = [
         href: '/interview/new', label: 'AI Interview', Icon: Video,
         children: [
           { href: '/interview/new', label: 'Start Interview' },
-          { href: '/dashboard#recent-interviews', label: 'Recent Interviews' },
-          { href: '/dashboard#analytics', label: 'Interview Analytics' },
+          { href: '/interviews', label: 'Recent Interviews' },
+          { href: '/analytics', label: 'Interview Analytics' },
         ],
       },
       { href: '/mentors',       label: 'Mentors',        Icon: Users },
@@ -50,7 +59,7 @@ const candidateSections = [
   },
 ];
 
-const mentorSections = [
+const mentorSections: NavigationSection[] = [
   {
     label: 'Core',
     links: [
@@ -73,7 +82,7 @@ const mentorSections = [
   },
 ];
 
-const adminSections = [
+const adminSections: NavigationSection[] = [
   {
     label: 'Admin',
     links: [
@@ -85,13 +94,20 @@ const adminSections = [
 export default function Sidebar({ userRole, userName, userEmail, avatarUrl, currentTier }: SidebarProps) {
   const pathname = usePathname();
   const router   = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [aiInterviewOpen, setAiInterviewOpen] = useState(true);
+
+  useEffect(() => {
+    const toggleSidebar = () => setCollapsed((value) => !value);
+    window.addEventListener('toggle-sidebar', toggleSidebar);
+    return () => window.removeEventListener('toggle-sidebar', toggleSidebar);
+  }, []);
 
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push('/');
-    router.refresh();
   }
 
   const sections =
@@ -107,24 +123,24 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
     ? currentTier.charAt(0).toUpperCase() + currentTier.slice(1)
     : null;
 
-  const SidebarContent = () => (
+  const renderSidebarContent = (compact = false) => (
     <>
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 py-4 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
+      <div className={`h-14 flex items-center gap-2.5 px-4 border-b ${compact ? 'justify-center' : ''}`} style={{ borderColor: 'var(--sidebar-border)' }}>
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
           style={{ background: 'linear-gradient(135deg, var(--neon-green), var(--neon-cyan))', boxShadow: 'var(--glow-green)' }}
         >
           <Zap className="w-4 h-4 text-black" />
         </div>
-        <div className="min-w-0">
+        {!compact && <div className="min-w-0">
           <div className="font-bold text-white text-sm leading-tight truncate">InterviewAI</div>
           <div className="text-[10px] font-medium" style={{ color: 'var(--neon-green)' }}>Palestine</div>
-        </div>
+        </div>}
       </div>
 
       {/* Tier Badge (candidates only) */}
-      {userRole === 'candidate' && tierLabel && (
+      {userRole === 'candidate' && tierLabel && !compact && (
         <div className="mx-3 mt-3 mb-1 p-2.5 rounded-xl flex items-center justify-between" style={{ background: 'rgba(0,217,126,0.06)', border: '1px solid rgba(0,217,126,0.12)' }}>
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Current Plan</div>
@@ -142,16 +158,16 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
       <div className="sidebar-content flex-1">
         {sections.map((section) => (
           <div key={section.label}>
-            <div className="sidebar-section-label">{section.label}</div>
+            {!compact && <div className="sidebar-section-label">{section.label}</div>}
             {section.links.map(({ href, label, Icon, children }) => {
               const isActive = pathname === href || (href !== '/dashboard' && href !== '/mentor/dashboard' && pathname.startsWith(href));
-              return <div key={href}>
-                <Link href={href} onClick={() => setMobileOpen(false)} className={`sidebar-link ${isActive ? 'active' : ''}`}>
+              return <div key={href} className="relative">
+                <Link href={href} title={compact ? label : undefined} onClick={() => setMobileOpen(false)} className={`sidebar-link ${isActive ? 'active' : ''} ${compact ? 'justify-center px-2' : ''}`}>
                   <Icon className="sidebar-icon" />
-                  <span className="flex-1">{label}</span>
-                  {children ? <ChevronRight className={`w-3 h-3 transition-transform ${isActive ? 'rotate-90' : ''}`} /> : isActive && <ChevronRight className="w-3 h-3 opacity-50" />}
+                  {!compact && <><span className="flex-1">{label}</span>{!children && isActive && <ChevronRight className="w-3 h-3 opacity-50" />}</>}
                 </Link>
-                {children && isActive && <div className="ml-7 mb-1 border-l" style={{ borderColor: 'var(--border-medium)' }}>
+                {children && !compact && <button type="button" onClick={() => setAiInterviewOpen((open) => !open)} className="absolute right-3 top-1.5 w-6 h-6 flex items-center justify-center rounded cursor-pointer" title={aiInterviewOpen ? 'Collapse AI Interview menu' : 'Expand AI Interview menu'} style={{ color: 'var(--text-muted)' }}><ChevronRight className={`w-3 h-3 transition-transform ${aiInterviewOpen ? 'rotate-90' : ''}`} /></button>}
+                {children && aiInterviewOpen && !compact && <div className="ml-7 mb-1 border-l" style={{ borderColor: 'var(--border-medium)' }}>
                   {children.map((child) => <Link key={child.href} href={child.href} onClick={() => setMobileOpen(false)} className="block py-1.5 pl-3 text-[11px] transition-colors" style={{ color: pathname === child.href ? 'var(--neon-green)' : 'var(--text-secondary)' }}>{child.label}</Link>)}
                 </div>}
               </div>;
@@ -161,7 +177,7 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
       </div>
 
       {/* User Footer */}
-      <div className="border-t p-3" style={{ borderColor: 'var(--sidebar-border)' }}>
+      {!compact && <div className="border-t p-3" style={{ borderColor: 'var(--sidebar-border)' }}>
         <div className="flex items-center gap-2.5 p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
           {avatarUrl ? (
             <img src={avatarUrl} alt={userName} className="w-8 h-8 rounded-full object-cover shrink-0" />
@@ -185,15 +201,15 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
             <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
-      </div>
+      </div>}
     </>
   );
 
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="sidebar hidden md:flex flex-col">
-        <SidebarContent />
+      <aside className={`sidebar hidden md:flex flex-col ${collapsed ? 'collapsed' : ''}`}>
+        {renderSidebarContent(collapsed)}
       </aside>
 
       {/* Mobile Toggle Button */}
@@ -217,7 +233,7 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
             >
               <X className="w-3.5 h-3.5" />
             </button>
-            <SidebarContent />
+            {renderSidebarContent()}
           </aside>
         </div>
       )}

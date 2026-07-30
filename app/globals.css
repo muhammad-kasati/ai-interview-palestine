@@ -131,6 +131,10 @@ p  { font-size: 0.875rem;  line-height: 1.6; color: var(--text-secondary); }
   overflow: hidden;
 }
 
+.sidebar.collapsed { width: 64px; }
+.sidebar.collapsed .sidebar-content { padding-top: 0.5rem; }
+.app-shell:has(.sidebar.collapsed) .main-content { margin-left: 64px; }
+
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
@@ -198,14 +202,29 @@ p  { font-size: 0.875rem;  line-height: 1.6; color: var(--text-secondary); }
 }
 
 .sidebar-link .sidebar-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 1.0625rem;
+  height: 1.0625rem;
   flex-shrink: 0;
+}
+
+.sidebar.collapsed .sidebar-link {
+  min-height: 2.65rem;
+  margin: 0.22rem 0.5rem;
+}
+
+.sidebar.collapsed .sidebar-link .sidebar-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.sidebar.collapsed .sidebar-link:hover {
+  background: rgba(255,255,255,0.07);
 }
 
 /* Top bar inside main content */
 .topbar {
-  height: 52px;
+  height: 56px;
+  min-height: 56px;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
