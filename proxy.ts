@@ -2,8 +2,22 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PROTECTED_CANDIDATE = ["/dashboard", "/interview", "/reports", "/mentors"];
-const PROTECTED_MENTOR = ["/mentor"];
+// Keep these routes explicit: `/mentors` is a candidate route and must never
+// be interpreted as a mentor-area route.
+const PROTECTED_MENTOR = [
+  "/mentor/dashboard",
+  "/mentor/sessions",
+  "/mentor/availability",
+  "/mentor/earnings",
+  "/mentor/profile",
+];
 const PROTECTED_ADMIN = ["/admin"];
+
+// A route prefix must end at a path boundary. Without this, `/mentors` also
+// matches `/mentor` and candidates get incorrectly redirected to `/dashboard`.
+function matchesRoute(pathname: string, routes: string[]) {
+  return routes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -37,9 +51,9 @@ export async function proxy(request: NextRequest) {
 
   // ── Redirect unauthenticated users from protected routes
   const isProtected =
-    PROTECTED_CANDIDATE.some((p) => pathname.startsWith(p)) ||
-    PROTECTED_MENTOR.some((p) => pathname.startsWith(p)) ||
-    PROTECTED_ADMIN.some((p) => pathname.startsWith(p));
+    matchesRoute(pathname, PROTECTED_CANDIDATE) ||
+    matchesRoute(pathname, PROTECTED_MENTOR) ||
+    matchesRoute(pathname, PROTECTED_ADMIN);
 
   if (isProtected && !user) {
     const loginUrl = request.nextUrl.clone();
@@ -66,7 +80,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── Role-based access control
-  if (user && PROTECTED_ADMIN.some((p) => pathname.startsWith(p))) {
+  if (user && matchesRoute(pathname, PROTECTED_ADMIN)) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -77,7 +91,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (user && PROTECTED_MENTOR.some((p) => pathname.startsWith(p))) {
+  if (user && matchesRoute(pathname, PROTECTED_MENTOR)) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")

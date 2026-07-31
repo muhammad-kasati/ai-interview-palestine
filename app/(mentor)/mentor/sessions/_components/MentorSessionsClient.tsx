@@ -47,7 +47,13 @@ export default function MentorSessionsClient({
   });
 
   const completedCount = bookings.filter((b) => b.status === 'completed').length;
-  const totalEarnings = completedCount * hourlyRate;
+  const earningFor = (booking: any) => {
+    const hours = Math.max((new Date(booking.end_at).getTime() - new Date(booking.start_at).getTime()) / 3_600_000, 0);
+    return Number(booking.mentor_earning_usd ?? Number(booking.mentor_rate_usd ?? hourlyRate) * hours);
+  };
+  const totalEarnings = bookings
+    .filter((booking) => booking.status === 'completed')
+    .reduce((total, booking) => total + earningFor(booking), 0);
 
   async function handleConfirm(bookingId: string) {
     try {
@@ -167,7 +173,7 @@ export default function MentorSessionsClient({
         </div>
         <div className="card rounded-2xl p-5">
           <div className="text-xs text-text-muted mb-1 font-semibold font-mono">Estimated Earnings</div>
-          <div className="text-2xl font-black text-purple-400">${totalEarnings}</div>
+          <div className="text-2xl font-black text-purple-400">${totalEarnings.toFixed(2)}</div>
         </div>
       </div>
 
@@ -245,6 +251,11 @@ export default function MentorSessionsClient({
                     <Clock className="w-4 h-4 text-neon-cyan" />
                     <span>{startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-muted">Session value</span>
+                  <span className="font-mono font-semibold text-neon-green">${earningFor(b).toFixed(2)}</span>
                 </div>
 
                 {b.candidate_notes && (

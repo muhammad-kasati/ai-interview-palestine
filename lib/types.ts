@@ -110,6 +110,8 @@ export interface Booking {
   candidate_notes: string | null;
   mentor_feedback: string | null;
   mentor_score: number | null;
+  mentor_rate_usd?: number | null;
+  mentor_earning_usd?: number | null;
   stripe_payment_id: string | null;
   created_at: string;
   updated_at: string;

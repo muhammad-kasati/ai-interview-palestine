@@ -49,12 +49,14 @@ export default async function MentorDashboardPage() {
   // Past sessions count & earnings
   const { data: completedBookings } = await supabase
     .from('bookings')
-    .select('id, mentor_score')
+    .select('id, mentor_score, mentor_earning_usd, mentor_rate_usd, start_at, end_at')
     .eq('mentor_id', mentor?.id ?? '')
     .eq('status', 'completed');
 
-  const totalEarnings =
-    ((completedBookings?.length ?? 0) * (mentor?.hourly_rate_usd ?? 0));
+  const totalEarnings = (completedBookings ?? []).reduce((total, booking) => {
+    const fallbackHours = Math.max((new Date(booking.end_at).getTime() - new Date(booking.start_at).getTime()) / 3_600_000, 0);
+    return total + Number(booking.mentor_earning_usd ?? Number(booking.mentor_rate_usd ?? mentor?.hourly_rate_usd ?? 0) * fallbackHours);
+  }, 0);
 
   return (
     <MentorDashboardClient

@@ -20,7 +20,7 @@ export default async function MentorAvailabilityPage() {
     .single();
 
   if (!mentor) {
-    redirect('/dashboard');
+    redirect('/mentor/dashboard');
   }
 
   const { data: availability } = await supabase

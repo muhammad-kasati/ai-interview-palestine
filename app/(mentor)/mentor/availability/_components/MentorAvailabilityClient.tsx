@@ -72,6 +72,15 @@ export default function MentorAvailabilityClient({
   }
 
   async function handleSaveSchedule() {
+    const invalidDay = DAY_NAMES.find((_, dayIndex) => {
+      const slot = schedule[dayIndex];
+      return slot.isActive && slot.startTime >= slot.endTime;
+    });
+    if (invalidDay) {
+      toast.error(`${invalidDay}: end time must be later than start time.`);
+      return;
+    }
+
     setSaving(true);
     try {
       // Upsert rows into mentor_availability table

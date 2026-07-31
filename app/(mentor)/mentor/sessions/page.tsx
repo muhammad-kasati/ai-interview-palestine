@@ -20,7 +20,7 @@ export default async function MentorSessionsPage() {
     .single();
 
   if (!mentor) {
-    redirect('/dashboard');
+    redirect('/mentor/dashboard');
   }
 
   // Get all bookings for this mentor with candidate profile data
@@ -28,7 +28,7 @@ export default async function MentorSessionsPage() {
     .from('bookings')
     .select(`
       id, start_at, end_at, status, session_link, candidate_notes,
-      mentor_feedback, mentor_score, created_at,
+      mentor_feedback, mentor_score, mentor_rate_usd, mentor_earning_usd, created_at,
       profiles (id, full_name, email, avatar_url, title, company)
     `)
     .eq('mentor_id', mentor.id)

@@ -26,7 +26,7 @@ export default async function MentorProfileSettingsPage() {
     .single();
 
   if (!mentor) {
-    redirect('/dashboard');
+    redirect('/mentor/dashboard');
   }
 
   return (

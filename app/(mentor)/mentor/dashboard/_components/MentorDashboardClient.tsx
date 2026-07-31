@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
-  Calendar, Clock, DollarSign, Star, Users, CheckCircle,
+  Calendar, Clock, DollarSign, Star, Users, CheckCircle, ArrowUpRight,
   Edit3, Save, Plus, Trash2, AlertCircle, Loader2, User
 } from 'lucide-react';
 import { DAY_NAMES } from '@/lib/types';
@@ -41,6 +41,7 @@ export default function MentorDashboardClient({
   const [saving, setSaving]               = useState(false);
 
   const notVerified = mentor && !mentor.verified;
+  const nextBooking = bookings.find((booking: any) => booking.status === 'confirmed' || booking.status === 'pending');
 
   async function submitFeedback(bookingId: string) {
     setSaving(true);
@@ -65,15 +66,18 @@ export default function MentorDashboardClient({
   ] as const;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-7">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border" style={{ background: 'linear-gradient(115deg, rgba(124,58,237,.16), rgba(0,217,126,.07) 55%, rgba(0,194,255,.10))', borderColor: 'rgba(255,255,255,.10)' }}>
+        <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full blur-3xl" style={{ background: 'rgba(0,217,126,.18)' }} />
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black shrink-0" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.3), rgba(0,229,255,0.3))' }}>
             {(profile?.full_name ?? 'M').charAt(0)}
           </div>
           <div>
+            <p className="text-xs font-bold uppercase tracking-[.15em] mb-2" style={{ color: 'var(--neon-green)' }}>Mentor workspace</p>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-black text-white">{profile?.full_name ?? 'Mentor'}</h1>
               {mentor?.verified ? (
@@ -86,12 +90,11 @@ export default function MentorDashboardClient({
           </div>
         </div>
 
-        <Link
-          href="/mentor/profile"
-          className="btn-ghost text-xs py-2 px-4 inline-flex items-center gap-2 self-start sm:self-auto"
-        >
-          <User className="w-3.5 h-3.5 text-neon-cyan" /> Edit Profile & Rates
-        </Link>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <Link href="/mentor/earnings" className="btn-ghost text-xs py-2 px-3"><DollarSign className="w-3.5 h-3.5 text-neon-green" /> Earnings</Link>
+          <Link href="/mentor/profile" className="btn-ghost text-xs py-2 px-3"><User className="w-3.5 h-3.5 text-neon-cyan" /> Edit profile <ArrowUpRight className="w-3 h-3" /></Link>
+        </div>
+        </div>
       </div>
 
       {/* Not yet verified notice */}
@@ -144,6 +147,25 @@ export default function MentorDashboardClient({
       {/* ── Overview Tab ────────────────────────────────────────────────── */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="card rounded-2xl p-6 lg:col-span-3">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div><h2 className="font-bold text-white">Next session</h2><p className="text-xs mt-1">Your closest candidate appointment.</p></div>
+                <Link href="/mentor/sessions" className="text-xs font-semibold text-neon-green hover:underline">View all sessions</Link>
+              </div>
+              {nextBooking ? <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: 'rgba(0,217,126,.05)', border: '1px solid rgba(0,217,126,.13)' }}>
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-neon-cyan" style={{ background: 'rgba(0,194,255,.11)' }}>{(nextBooking.profiles?.full_name ?? 'C').charAt(0)}</div>
+                <div className="min-w-0 flex-1"><p className="font-semibold text-white truncate">{nextBooking.profiles?.full_name ?? 'Candidate'}</p><p className="text-xs mt-1">{new Date(nextBooking.start_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {new Date(nextBooking.start_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p></div>
+                <span className={nextBooking.status === 'confirmed' ? 'badge-green' : 'badge-amber'}>{nextBooking.status}</span>
+              </div> : <div className="py-6 text-center rounded-xl" style={{ background: 'rgba(255,255,255,.025)' }}><Calendar className="w-6 h-6 mx-auto mb-2 text-text-muted" /><p className="text-sm">No upcoming sessions yet.</p></div>}
+            </div>
+            <div className="card rounded-2xl p-6 lg:col-span-2">
+              <h2 className="font-bold text-white">Profile readiness</h2>
+              <p className="text-xs mt-1">Complete these details to improve bookings.</p>
+              <div className="mt-4 h-2 rounded-full overflow-hidden bg-white/5"><div className="h-full rounded-full" style={{ width: `${[profile?.bio, mentor?.specializations?.length, mentor?.hourly_rate_usd].filter(Boolean).length / 3 * 100}%`, background: 'linear-gradient(90deg, var(--neon-green), var(--neon-cyan))' }} /></div>
+              <Link href="/mentor/profile" className="inline-flex mt-4 text-xs font-semibold text-neon-cyan hover:underline">Complete your public profile <ArrowUpRight className="w-3.5 h-3.5 ml-1" /></Link>
+            </div>
+          </div>
           <div className="card rounded-2xl p-6">
             <h2 className="font-bold text-white mb-4">Your Specializations</h2>
             <div className="flex flex-wrap gap-2">
