@@ -7,14 +7,40 @@
 create extension if not exists "pgcrypto";
 
 -- ─── ENUM TYPES ──────────────────────────────────────────────────────────────
-create type user_role as enum ('candidate', 'mentor', 'admin');
-create type interview_mode as enum ('free', 'audio', 'video', 'human');
-create type interview_status as enum ('pending', 'active', 'completed', 'cancelled');
-create type experience_level as enum ('junior', 'mid', 'senior');
-create type job_role as enum ('fullstack', 'backend', 'frontend', 'mobile', 'devops', 'system_design', 'data_engineer', 'ml_engineer');
-create type target_market as enum ('local_palestine', 'global_remote');
-create type booking_status as enum ('pending', 'confirmed', 'completed', 'cancelled', 'no_show');
-create type subscription_tier as enum ('free', 'standard', 'premium', 'human');
+-- PostgreSQL does not support `create type if not exists` for ENUMs.
+-- These guarded blocks keep this initial migration safe after a partial run.
+do $$ begin
+  create type user_role as enum ('candidate', 'mentor', 'admin');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type interview_mode as enum ('free', 'audio', 'video', 'human');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type interview_status as enum ('pending', 'active', 'completed', 'cancelled');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type experience_level as enum ('junior', 'mid', 'senior');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type job_role as enum ('fullstack', 'backend', 'frontend', 'mobile', 'devops', 'system_design', 'data_engineer', 'ml_engineer');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type target_market as enum ('local_palestine', 'global_remote');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type booking_status as enum ('pending', 'confirmed', 'completed', 'cancelled', 'no_show');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type subscription_tier as enum ('free', 'standard', 'premium', 'human');
+exception when duplicate_object then null;
+end $$;
 
 -- ─── PROFILES ────────────────────────────────────────────────────────────────
 create table public.profiles (
@@ -62,6 +88,9 @@ begin
 end;
 $$;
 
+-- `create trigger` has no IF NOT EXISTS syntax in PostgreSQL.
+-- Replace an older copy when this migration is re-run after a partial execution.
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
@@ -185,7 +214,8 @@ create table public.mentor_availability (
   start_time  time not null,
   end_time    time not null,
   timezone    text not null default 'Asia/Jerusalem',
-  is_active   boolean not null default true
+  is_active   boolean not null default true,
+  unique (mentor_id, day_of_week)
 );
 
 alter table public.mentor_availability enable row level security;
@@ -229,3 +259,57 @@ create policy "Mentors can update booking status"
   using (exists (
     select 1 from public.mentors m where m.id = mentor_id and m.profile_id = auth.uid()
   ));
+
+-- NOTIFICATIONS ----------------------------------------------------
+-- Booking lifecycle notifications shown in the in-app notification bell.
+create table public.notifications (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references public.profiles(id) on delete cascade,
+  title       text not null,
+  body        text not null,
+  type        text not null default 'system' check (type in ('system', 'booking', 'session')),
+  read_at     timestamptz,
+  created_at  timestamptz not null default now()
+);
+
+create index notifications_user_created_at_idx on public.notifications (user_id, created_at desc);
+alter table public.notifications enable row level security;
+create policy "Users can view their notifications"
+  on public.notifications for select using (auth.uid() = user_id);
+create policy "Users can mark their notifications as read"
+  on public.notifications for update using (auth.uid() = user_id);
+
+create or replace function public.notify_booking_change()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  mentor_user_id uuid;
+begin
+  if tg_op = 'INSERT' then
+    select profile_id into mentor_user_id from public.mentors where id = new.mentor_id;
+    insert into public.notifications (user_id, title, body, type)
+    values (mentor_user_id, 'New booking request', 'A candidate requested a mentor interview session.', 'booking');
+    return new;
+  end if;
+
+  if old.status is distinct from new.status then
+    insert into public.notifications (user_id, title, body, type)
+    values (
+      new.candidate_id,
+      case new.status when 'confirmed' then 'Session confirmed' when 'cancelled' then 'Session cancelled' when 'completed' then 'Session completed' else 'Booking updated' end,
+      case new.status when 'confirmed' then 'Your mentor confirmed the interview session.' when 'cancelled' then 'Your mentor session was cancelled.' when 'completed' then 'Your mentor shared feedback for your session.' else 'Your booking status changed.' end,
+      'booking'
+    );
+  end if;
+
+  if old.session_link is distinct from new.session_link and new.session_link is not null then
+    insert into public.notifications (user_id, title, body, type)
+    values (new.candidate_id, 'Your session link is ready', 'Open My Mentor Sessions to join your interview.', 'session');
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists booking_notifications on public.bookings;
+create trigger booking_notifications
+  after insert or update of status, session_link on public.bookings
+  for each row execute procedure public.notify_booking_change();

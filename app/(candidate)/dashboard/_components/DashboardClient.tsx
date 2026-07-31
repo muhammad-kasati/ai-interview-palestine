@@ -127,7 +127,7 @@ export default function DashboardClient({ userName, recentInterviews, currentTie
             ← Back to Dashboard
           </button>
         </div>
-        <SetupWizard onStart={handleStartInterview as never} />
+        <SetupWizard onStart={handleStartInterview as never} currentTier={currentTier} />
       </div>
     );
   }

@@ -1,17 +1,26 @@
 'use client';
 
 import { useState } from 'react';
-import { BriefcaseBusiness, ChevronDown, FileText, Globe2, Play, Plus, Sparkles, Target, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { BriefcaseBusiness, BrainCircuit, ChevronDown, FileText, Mic, Play, Plus, Sparkles, Target, Users, Video, X } from 'lucide-react';
 
 type JobRole = 'fullstack' | 'backend' | 'frontend' | 'mobile' | 'devops' | 'system_design' | 'data_engineer' | 'ml_engineer';
 type ExperienceLevel = 'junior' | 'mid' | 'senior';
-interface InterviewConfig { jobRole: JobRole; experienceLevel: ExperienceLevel; techStack: string[]; mode: 'free'; targetMarket: 'local_palestine' | 'global_remote'; }
-interface SetupWizardProps { onStart: (config: InterviewConfig) => void; }
+interface InterviewConfig { jobRole: JobRole; experienceLevel: ExperienceLevel; techStack: string[]; mode: 'free' | 'audio' | 'video' | 'human'; targetMarket: 'local_palestine' | 'global_remote'; }
+interface SetupWizardProps { onStart: (config: InterviewConfig) => void; currentTier?: string; }
 
 const roles: { value: JobRole; label: string }[] = [{ value: 'fullstack', label: 'Full-Stack Developer' }, { value: 'frontend', label: 'Frontend Developer' }, { value: 'backend', label: 'Backend Developer' }, { value: 'mobile', label: 'Mobile Developer' }, { value: 'devops', label: 'DevOps / SRE' }, { value: 'system_design', label: 'System Design' }, { value: 'data_engineer', label: 'Data Engineer' }, { value: 'ml_engineer', label: 'ML Engineer' }];
 const recommendedSkills = ['Next.js', 'React', 'TypeScript', 'Node.js', 'Git', 'GitHub', 'OOP', 'Data Structures', 'SQL', 'MongoDB', 'REST APIs', 'HTML', 'CSS', 'JavaScript'];
 
-export default function SetupWizard({ onStart }: SetupWizardProps) {
+const INTERVIEW_MODES = [
+  { value: 'free', label: 'Text AI', description: 'Chat-based Q&A with Gemini', badge: 'FREE', Icon: BrainCircuit, color: 'var(--neon-green)', requirement: 'Unlimited text practice' },
+  { value: 'audio', label: 'Audio AI', description: 'Real-time voice interview', badge: 'STANDARD', Icon: Mic, color: 'var(--neon-green)', requirement: 'Standard: 3 sessions / month' },
+  { value: 'video', label: 'Video Avatar', description: 'Face-to-face interview with Tavus', badge: 'PREMIUM', Icon: Video, color: 'var(--neon-cyan)', requirement: 'Free: 1 trial · Premium: 2 / month' },
+  { value: 'human', label: 'Human Coach', description: '1-on-1 with a real engineer', badge: 'HUMAN', Icon: Users, color: 'var(--neon-purple)', requirement: 'Requires a mentor credit or booking' },
+] as const;
+
+export default function SetupWizard({ onStart, currentTier = 'free' }: SetupWizardProps) {
+  const router = useRouter();
   const [tab, setTab] = useState<'practice' | 'company'>('practice');
   const [jobRole, setJobRole] = useState<JobRole>('fullstack');
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>('mid');
@@ -25,6 +34,8 @@ export default function SetupWizard({ onStart }: SetupWizardProps) {
   const [questionCount, setQuestionCount] = useState(5);
   const [jobDescription, setJobDescription] = useState('');
   const [language, setLanguage] = useState('English');
+  const [mode, setMode] = useState<InterviewConfig['mode']>('free');
+  const modeLocked = (mode === 'audio' && !['standard', 'premium', 'human'].includes(currentTier)) || (mode === 'video' && !['premium', 'human'].includes(currentTier));
   const addSkill = (skill = skillInput.trim()) => { if (skill && !skills.includes(skill)) setSkills((current) => [...current, skill]); setSkillInput(''); };
   const removeSkill = (skill: string) => setSkills((current) => current.filter((item) => item !== skill));
 
@@ -50,7 +61,8 @@ export default function SetupWizard({ onStart }: SetupWizardProps) {
           </div>}
         </section>
       </> : <div className="space-y-5"><div><h2 className="text-lg font-bold text-white">Company research</h2><p className="text-sm mt-1">Add company context to generate more relevant interview questions.</p></div><div className="grid md:grid-cols-2 gap-4"><Input label="Company name" value={company} setValue={setCompany} placeholder="e.g. Google, Amazon, Meta" /><Input label="Target role" value={targetRole} setValue={setTargetRole} placeholder="e.g. Freelance Web Developer" /></div><div className="grid md:grid-cols-2 gap-4"><Select label="Target market" value={market} onChange={(value) => setMarket(value as typeof market)} options={[["global_remote", "Global / Remote"], ["local_palestine", "Palestinian local market"]]} /><Input label="Location" value="" setValue={() => {}} placeholder="e.g. Remote, Ramallah, Gaza" /></div><div className="rounded-xl p-4 text-sm" style={{ background: 'rgba(0,194,255,.06)', border: '1px solid rgba(0,194,255,.16)', color: 'var(--text-secondary)' }}>Company research will influence the examples and scenarios in your interview. You can continue without completing these fields.</div></div>}
-      <button disabled={skills.length === 0} onClick={() => onStart({ jobRole, experienceLevel, techStack: skills, mode: 'free', targetMarket: market })} className="btn-cyan w-full justify-center py-3 text-sm disabled:opacity-50"><Play className="w-4 h-4" /> Start Interview</button>
+      <section><Label text="Interview Type" required /><div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">{INTERVIEW_MODES.map(({ value, label, description, badge, Icon, color, requirement }) => { const selected = mode === value; const requiresUpgrade = (value === 'audio' && !['standard', 'premium', 'human'].includes(currentTier)) || (value === 'video' && !['premium', 'human'].includes(currentTier)); return <button type="button" key={value} onClick={() => setMode(value)} className="rounded-2xl p-4 text-left transition-all" style={{ background: selected ? `${color}12` : 'rgba(255,255,255,.025)', border: `1px solid ${selected ? color : 'var(--border-subtle)'}` }}><div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ background: `${color}18` }}><Icon className="w-5 h-5" style={{ color }} /></div><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{ color, background: `${color}18` }}>{badge}</span><h3 className="font-bold text-white mt-3">{label}</h3><p className="text-xs mt-1">{description}</p><p className="text-[10px] mt-3" style={{ color: requiresUpgrade ? 'var(--neon-amber)' : 'var(--text-muted)' }}>{requiresUpgrade ? 'Upgrade required · ' : ''}{requirement}</p></button>; })}</div></section>
+      <button disabled={skills.length === 0} onClick={() => modeLocked ? router.push('/subscription') : mode === 'human' ? router.push('/mentors') : onStart({ jobRole, experienceLevel, techStack: skills, mode, targetMarket: market })} className="btn-cyan w-full justify-center py-3 text-sm disabled:opacity-50"><Play className="w-4 h-4" /> {modeLocked ? 'Upgrade to unlock this mode' : mode === 'human' ? 'Browse human coaches' : 'Start Interview'}</button>
     </div>
   </div>;
 }

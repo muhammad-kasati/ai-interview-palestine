@@ -1,7 +1,8 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Bell, ChevronRight, LayoutDashboard, PanelLeft } from 'lucide-react';
+import { ChevronRight, LayoutDashboard, PanelLeft } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':          'Dashboard',
@@ -11,8 +12,10 @@ const PAGE_TITLES: Record<string, string> = {
   '/subscription':       'Subscription',
   '/referrals':          'Refer Friends',
   '/help':               'Help & Support',
+  '/settings':           'Settings',
   '/interviews':         'Recent Interviews',
   '/analytics':          'Interview Analytics',
+  '/sessions':           'My Mentor Sessions',
   '/mentor/dashboard':   'Mentor Dashboard',
   '/mentor/sessions':    'Sessions',
   '/mentor/availability':'Availability',
@@ -56,14 +59,7 @@ export default function Topbar() {
 
       {/* Right Actions */}
       <div className="flex items-center gap-2">
-        <button
-          className="relative w-8 h-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer"
-          style={{ color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-medium)'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-subtle)'; }}
-        >
-          <Bell className="w-3.5 h-3.5" />
-        </button>
+        <NotificationBell />
       </div>
     </header>
   );

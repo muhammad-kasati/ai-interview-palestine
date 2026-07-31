@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   Zap, LayoutDashboard, Video, Users, LogOut,
-  User, CreditCard, HelpCircle, ChevronRight,
+  User, CreditCard, HelpCircle, ChevronRight, Settings, Moon, Sun,
   Shield, Calendar, Clock, Star, Menu, X, Gift
 } from 'lucide-react';
 
@@ -41,6 +41,7 @@ const candidateSections: NavigationSection[] = [
         ],
       },
       { href: '/mentors',       label: 'Mentors',        Icon: Users },
+      { href: '/sessions',      label: 'My Mentor Sessions', Icon: Calendar },
     ],
   },
   {
@@ -49,6 +50,7 @@ const candidateSections: NavigationSection[] = [
       { href: '/profile',       label: 'Profile',        Icon: User },
       { href: '/subscription',  label: 'Subscription',   Icon: CreditCard },
       { href: '/referrals',     label: 'Refer Friends',  Icon: Gift },
+      { href: '/settings',      label: 'Settings',       Icon: Settings },
     ],
   },
   {
@@ -98,6 +100,7 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [aiInterviewOpen, setAiInterviewOpen] = useState(true);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
     const toggleSidebar = () => setCollapsed((value) => !value);
@@ -162,7 +165,7 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
             {section.links.map(({ href, label, Icon, children }) => {
               const isActive = pathname === href || (href !== '/dashboard' && href !== '/mentor/dashboard' && pathname.startsWith(href));
               return <div key={href} className="relative">
-                <Link href={href} title={compact ? label : undefined} onClick={() => setMobileOpen(false)} className={`sidebar-link ${isActive ? 'active' : ''} ${compact ? 'justify-center px-2' : ''}`}>
+                <Link href={href} title={compact ? label : undefined} onClick={(event) => { setMobileOpen(false); if (href === '/mentors') { event.preventDefault(); router.push('/mentors'); } }} className={`sidebar-link ${isActive ? 'active' : ''} ${compact ? 'justify-center px-2' : ''} ${href === '/mentors' ? 'relative z-10' : ''}`}>
                   <Icon className="sidebar-icon" />
                   {!compact && <><span className="flex-1">{label}</span>{!children && isActive && <ChevronRight className="w-3 h-3 opacity-50" />}</>}
                 </Link>
@@ -177,8 +180,16 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
       </div>
 
       {/* User Footer */}
-      {!compact && <div className="border-t p-3" style={{ borderColor: 'var(--sidebar-border)' }}>
-        <div className="flex items-center gap-2.5 p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
+      {!compact && <div className="relative border-t p-3" style={{ borderColor: 'var(--sidebar-border)' }}>
+        {accountOpen && <div className="absolute bottom-[calc(100%+8px)] left-3 right-3 card rounded-2xl p-2 z-20" style={{ boxShadow: '0 18px 40px rgba(0,0,0,.42)' }}>
+          <div className="p-3 rounded-xl mb-2" style={{ background: 'rgba(0,217,126,.07)' }}><p className="text-sm font-bold text-white truncate">{userName}</p><p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{userEmail}</p><p className="text-[11px] mt-1" style={{ color: 'var(--neon-green)' }}>{tierLabel} Plan</p></div>
+          <Link href="/subscription" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 p-2 rounded-lg text-xs font-semibold" style={{ color: 'var(--neon-green)' }}><Zap className="w-4 h-4" /> Upgrade to Pro</Link>
+          <Link href="/profile" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 p-2 rounded-lg text-xs" style={{ color: 'var(--text-secondary)' }}><User className="w-4 h-4" /> Profile</Link>
+          <Link href="/subscription" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 p-2 rounded-lg text-xs" style={{ color: 'var(--text-secondary)' }}><CreditCard className="w-4 h-4" /> Subscription</Link>
+          <Link href="/settings" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 p-2 rounded-lg text-xs" style={{ color: 'var(--text-secondary)' }}><Settings className="w-4 h-4" /> Settings</Link>
+          <div className="flex items-center justify-between mx-2 mt-2 pt-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}><span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Theme</span><span className="flex gap-1"><Sun className="w-3.5 h-3.5 text-neon-green" /><Moon className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} /></span></div>
+        </div>}
+        <div role="button" tabIndex={0} onClick={() => setAccountOpen((open) => !open)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setAccountOpen((open) => !open); }} className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left cursor-pointer" style={{ background: 'rgba(255,255,255,0.03)' }}>
           {avatarUrl ? (
             <img src={avatarUrl} alt={userName} className="w-8 h-8 rounded-full object-cover shrink-0" />
           ) : (
@@ -191,7 +202,7 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
             {userEmail && <div className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{userEmail}</div>}
           </div>
           <button
-            onClick={handleLogout}
+            onClick={(event) => { event.stopPropagation(); handleLogout(); }}
             className="p-1.5 rounded-lg transition-colors cursor-pointer"
             style={{ color: 'var(--text-muted)' }}
             title="Sign out"

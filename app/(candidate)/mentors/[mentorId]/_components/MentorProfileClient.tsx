@@ -65,6 +65,7 @@ export default function MentorProfileClient({
     if (isMock) {
       // Simulate booking for demo
       await new Promise((r) => setTimeout(r, 1200));
+      window.dispatchEvent(new CustomEvent('app-notification', { detail: { title: 'Booking requested', body: `Your session with ${profile?.full_name ?? 'your mentor'} is awaiting confirmation.`, type: 'booking' } }));
       setBooked(true);
       setBooking(false);
       return;
@@ -99,6 +100,7 @@ export default function MentorProfileClient({
         return;
       }
 
+      window.dispatchEvent(new CustomEvent('app-notification', { detail: { title: 'Booking requested', body: `Your session with ${profile?.full_name ?? 'your mentor'} is awaiting confirmation.`, type: 'booking' } }));
       setBooked(true);
     } catch {
       setError('Network error. Please try again.');
@@ -134,7 +136,8 @@ export default function MentorProfileClient({
   }
 
   const timeOptions = getTimeOptions();
-  const canBook = candidateTier !== 'free';
+  const mentorCredits = candidateTier === 'human' ? 3 : candidateTier === 'premium' || candidateTier === 'standard' ? 1 : 0;
+  const canBook = mentorCredits > 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -315,17 +318,17 @@ export default function MentorProfileClient({
 
           {/* Notes & Book */}
           <div className="card rounded-2xl p-6">
-            <h2 className="font-bold text-white mb-4">Book Session</h2>
+            <div className="flex items-center justify-between mb-4"><h2 className="font-bold text-white">Book Session</h2><span className="badge-purple">{mentorCredits} credit{mentorCredits === 1 ? '' : 's'} available</span></div>
 
             {/* Tier gate */}
             {!canBook ? (
               <div className="p-4 rounded-xl mb-4" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}>
                 <p className="text-sm font-semibold mb-1" style={{ color: '#FBBF24' }}>Human Tier Required</p>
                 <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
-                  Upgrade to Standard, Premium, or Human plan to book mentor sessions.
+                  Your current plan has no human-coach credits. Standard and Premium include 1 session credit; Human includes 3. You can also purchase a single interview credit.
                 </p>
-                <Link href="/#pricing" className="btn-neon-green text-sm" style={{ padding: '0.5rem 1rem' }}>
-                  View Plans
+                <Link href="/subscription" className="btn-neon-green text-sm" style={{ padding: '0.5rem 1rem' }}>
+                  Get a session credit
                   <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
