@@ -107,6 +107,10 @@ export interface Booking {
   end_at: string;
   status: BookingStatus;
   session_link: string | null;
+  room_code?: string | null;
+  code_snapshot?: string | null;
+  reminder_1h_sent?: boolean;
+  reminder_start_sent?: boolean;
   candidate_notes: string | null;
   mentor_feedback: string | null;
   mentor_score: number | null;

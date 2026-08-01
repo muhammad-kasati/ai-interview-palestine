@@ -52,6 +52,8 @@ export const metadata: Metadata = {
   },
 };
 
+import SessionReminderChecker from "@/components/SessionReminderChecker";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -65,6 +67,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-screen bg-[#050608] text-[#F0F4F8] font-sans antialiased">
+        <SessionReminderChecker />
         {children}
       </body>
     </html>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
   Calendar, Clock, CheckCircle, XCircle, Video, Edit3,
@@ -297,32 +298,36 @@ export default function MentorSessionsClient({
 
                   {b.status === 'confirmed' && (
                     <>
+                      <Link
+                        href={`/room/${b.id}`}
+                        className="btn-neon-green text-xs py-1.5 px-3 flex items-center gap-1.5 shadow-md"
+                      >
+                        <Video className="w-3.5 h-3.5" /> Open Interview Room
+                      </Link>
                       <button
                         onClick={() => openFeedbackModal(b)}
                         className="btn-cyan text-xs py-1.5 px-3 flex items-center gap-1.5"
                       >
                         <Edit3 className="w-3.5 h-3.5" /> Complete & Submit Feedback
                       </button>
-                      {b.session_link && (
-                        <a
-                          href={b.session_link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5"
-                        >
-                          <Video className="w-3.5 h-3.5 text-neon-green" /> Join Meeting <ExternalLink className="w-3 h-3 ml-0.5" />
-                        </a>
-                      )}
                     </>
                   )}
 
                   {b.status === 'completed' && (
-                    <button
-                      onClick={() => openFeedbackModal(b)}
-                      className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5"
-                    >
-                      <Edit3 className="w-3.5 h-3.5 text-neon-cyan" /> Edit Feedback
-                    </button>
+                    <>
+                      <Link
+                        href={`/room/${b.id}`}
+                        className="btn-ghost text-xs py-1.5 px-3 text-neon-cyan border-neon-cyan/20 flex items-center gap-1.5"
+                      >
+                        <Video className="w-3.5 h-3.5" /> Room & Code Snapshot
+                      </Link>
+                      <button
+                        onClick={() => openFeedbackModal(b)}
+                        className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-neon-cyan" /> Edit Feedback
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -353,15 +358,28 @@ export default function MentorSessionsClient({
             </p>
 
             <div>
-              <label className="block text-xs font-semibold text-text-secondary mb-1">
-                Meeting Room / Video Link
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-text-secondary">
+                  Meeting Room / Google Meet Link
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const randomCode = Array.from({ length: 3 }, () => Math.random().toString(36).substring(2, 5)).join('-');
+                    setSessionLink(`https://meet.google.com/${randomCode}`);
+                    toast.success('Generated Google Meet link!');
+                  }}
+                  className="text-[11px] font-bold text-neon-cyan hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <Video className="w-3 h-3" /> Auto-generate Google Meet Link
+                </button>
+              </div>
               <input
                 type="url"
                 value={sessionLink}
                 onChange={(e) => setSessionLink(e.target.value)}
                 placeholder="e.g. https://meet.google.com/abc-defg-hij"
-                className="input-dark text-sm"
+                className="input-dark text-sm w-full"
               />
             </div>
 
