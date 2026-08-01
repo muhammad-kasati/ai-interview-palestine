@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   Zap, LayoutDashboard, Video, Users, LogOut,
@@ -75,6 +75,7 @@ const mentorSections: NavigationSection[] = [
     label: 'Account',
     links: [
       { href: '/mentor/profile',      label: 'Profile & Rates', Icon: Star },
+      { href: '/mentor/settings',     label: 'Settings',        Icon: Settings },
     ],
   },
   {
@@ -102,11 +103,25 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
   const [collapsed, setCollapsed] = useState(false);
   const [aiInterviewOpen, setAiInterviewOpen] = useState(true);
   const [accountOpen, setAccountOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const toggleSidebar = () => setCollapsed((value) => !value);
     window.addEventListener('toggle-sidebar', toggleSidebar);
     return () => window.removeEventListener('toggle-sidebar', toggleSidebar);
+  }, []);
+
+  useEffect(() => {
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) setAccountOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setAccountOpen(false); };
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
   }, []);
 
   async function handleLogout() {
@@ -181,13 +196,14 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
       </div>
 
       {/* User Footer */}
-      {!compact && <div className="relative border-t p-3" style={{ borderColor: 'var(--sidebar-border)' }}>
+      {!compact && <div ref={accountMenuRef} className="relative border-t p-3" style={{ borderColor: 'var(--sidebar-border)' }}>
         {accountOpen && <div className="absolute bottom-[calc(100%+8px)] left-3 right-3 card rounded-2xl p-2 z-20" style={{ boxShadow: '0 18px 40px rgba(0,0,0,.42)' }}>
           <div className="p-3 rounded-xl mb-2" style={{ background: 'rgba(0,217,126,.07)' }}><p className="text-sm font-bold text-white truncate">{userName}</p><p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{userEmail}</p><p className="text-[11px] mt-1" style={{ color: 'var(--neon-green)' }}>{tierLabel} Plan</p></div>
           {userRole === 'mentor' ? <>
             <Link href="/mentor/profile" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 p-2 rounded-lg text-xs font-semibold" style={{ color: 'var(--neon-green)' }}><Star className="w-4 h-4" /> Profile & Rates</Link>
             <Link href="/mentor/earnings" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 p-2 rounded-lg text-xs" style={{ color: 'var(--text-secondary)' }}><DollarSign className="w-4 h-4" /> Earnings</Link>
             <Link href="/mentor/availability" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 p-2 rounded-lg text-xs" style={{ color: 'var(--text-secondary)' }}><Clock className="w-4 h-4" /> Availability</Link>
+            <Link href="/mentor/settings" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 p-2 rounded-lg text-xs" style={{ color: 'var(--text-secondary)' }}><Settings className="w-4 h-4" /> Settings</Link>
           </> : <>
             <Link href="/subscription" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 p-2 rounded-lg text-xs font-semibold" style={{ color: 'var(--neon-green)' }}><Zap className="w-4 h-4" /> Upgrade to Pro</Link>
             <Link href="/profile" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 p-2 rounded-lg text-xs" style={{ color: 'var(--text-secondary)' }}><User className="w-4 h-4" /> Profile</Link>

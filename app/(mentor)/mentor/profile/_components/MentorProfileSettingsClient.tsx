@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { ChangeEvent, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { User, DollarSign, Briefcase, Award, Save, Plus, X, Loader2, CheckCircle2, Globe, Link2, GitBranch } from 'lucide-react';
+import { User, DollarSign, Briefcase, Award, Save, Plus, X, Loader2, Globe, Link2, GitBranch, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface MentorProfileSettingsClientProps {
@@ -24,6 +24,9 @@ export default function MentorProfileSettingsClient({
 }: MentorProfileSettingsClientProps) {
   const supabase = createClient();
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? '');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
   const [title, setTitle] = useState(profile?.title ?? '');
@@ -49,6 +52,29 @@ export default function MentorProfileSettingsClient({
     setSpecializations((prev) => prev.filter((t) => t !== tag));
   }
 
+  async function handleAvatarChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file.'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image size must be 5 MB or less.'); return; }
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/mentor/avatar', { method: 'POST', body: formData });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? 'Image upload failed.');
+      setAvatarUrl(result.url);
+      toast.success('Photo uploaded. Save your profile to publish it.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Image upload failed.');
+    } finally {
+      setUploadingAvatar(false);
+      event.target.value = '';
+    }
+  }
+
   async function handleSaveProfile() {
     setSaving(true);
     try {
@@ -57,6 +83,7 @@ export default function MentorProfileSettingsClient({
         .from('profiles')
         .update({
           full_name: fullName,
+          avatar_url: avatarUrl || null,
           title,
           company,
           bio,
@@ -118,6 +145,13 @@ export default function MentorProfileSettingsClient({
         
         {/* Left Column: Basic Profile info */}
         <div className="md:col-span-2 space-y-6">
+          <div className="card rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center gap-5">
+            <div className="relative shrink-0">
+              {avatarUrl ? <img src={avatarUrl} alt="Mentor profile" className="w-20 h-20 rounded-2xl object-cover border" style={{ borderColor: 'rgba(0,217,126,.35)' }} /> : <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black" style={{ background: 'linear-gradient(135deg, rgba(124,92,252,.35), rgba(0,194,255,.28))' }}>{(fullName || 'M').charAt(0).toUpperCase()}</div>}
+              {uploadingAvatar && <div className="absolute inset-0 rounded-2xl flex items-center justify-center bg-black/60"><Loader2 className="w-5 h-5 animate-spin text-neon-green" /></div>}
+            </div>
+            <div className="flex-1"><h2 className="font-bold text-white">Profile photo</h2><p className="text-xs mt-1">A clear photo helps candidates recognize and trust your mentor profile.</p><input ref={fileInputRef} onChange={handleAvatarChange} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" /><button type="button" disabled={uploadingAvatar} onClick={() => fileInputRef.current?.click()} className="btn-ghost text-xs mt-4"><Camera className="w-3.5 h-3.5 text-neon-cyan" />{uploadingAvatar ? 'Uploading…' : 'Upload photo'}</button></div>
+          </div>
           <div className="card rounded-2xl p-6 space-y-4">
             <h2 className="font-bold text-white text-lg flex items-center gap-2">
               <Briefcase className="w-5 h-5 text-neon-green" />

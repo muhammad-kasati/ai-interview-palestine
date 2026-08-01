@@ -10,6 +10,7 @@ const PROTECTED_MENTOR = [
   "/mentor/availability",
   "/mentor/earnings",
   "/mentor/profile",
+  "/mentor/settings",
 ];
 const PROTECTED_ADMIN = ["/admin"];
 

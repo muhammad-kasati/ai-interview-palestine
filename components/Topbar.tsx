@@ -20,6 +20,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/mentor/sessions':    'Sessions',
   '/mentor/availability':'Availability',
   '/mentor/profile':     'Profile & Rates',
+  '/mentor/settings':    'Mentor Settings',
   '/admin/dashboard':    'Admin Panel',
 };
 
