@@ -145,7 +145,7 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
   const renderSidebarContent = (compact = false) => (
     <>
       {/* Logo */}
-      <div className={`h-14 flex items-center gap-2.5 px-4 border-b ${compact ? 'justify-center' : ''}`} style={{ borderColor: 'var(--sidebar-border)' }}>
+      <div className={`h-14 flex items-center gap-2.5 px-4 border-b border-white/[0.08] ${compact ? 'justify-center' : ''}`}>
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
           style={{ background: 'linear-gradient(135deg, var(--neon-green), var(--neon-cyan))', boxShadow: 'var(--glow-green)' }}
@@ -196,7 +196,7 @@ export default function Sidebar({ userRole, userName, userEmail, avatarUrl, curr
       </div>
 
       {/* User Footer */}
-      {!compact && <div ref={accountMenuRef} className="relative border-t p-3" style={{ borderColor: 'var(--sidebar-border)' }}>
+      {!compact && <div ref={accountMenuRef} className="relative border-t border-white/[0.08] p-3">
         {accountOpen && <div className="absolute bottom-[calc(100%+8px)] left-3 right-3 card rounded-2xl p-2 z-20" style={{ boxShadow: '0 18px 40px rgba(0,0,0,.42)' }}>
           <div className="p-3 rounded-xl mb-2" style={{ background: 'rgba(0,217,126,.07)' }}><p className="text-sm font-bold text-white truncate">{userName}</p><p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{userEmail}</p><p className="text-[11px] mt-1" style={{ color: 'var(--neon-green)' }}>{tierLabel} Plan</p></div>
           {userRole === 'mentor' ? <>

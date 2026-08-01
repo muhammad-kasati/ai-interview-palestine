@@ -1,61 +1,319 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { Calendar, CheckCircle2, CircleDollarSign, Download, Landmark, TrendingUp, Wallet } from 'lucide-react';
+import {
+  Calendar, CheckCircle2, CircleDollarSign, Download, Landmark,
+  TrendingUp, Wallet, BarChart3, Filter, ArrowUpRight, Clock, Star
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+
+interface BookingRecord {
+  id: string;
+  start_at: string;
+  end_at: string;
+  status: string;
+  created_at: string;
+  mentor_rate_usd: number | null;
+  mentor_earning_usd: number | null;
+  profiles: { full_name: string | null; email: string | null }[] | null;
+}
 
 interface MentorEarningsClientProps {
   hourlyRate: number;
-  bookings: Array<{ id: string; start_at: string; end_at: string; status: string; created_at: string; mentor_rate_usd: number | null; mentor_earning_usd: number | null; profiles: { full_name: string | null; email: string | null }[] | null }>;
+  bookings: BookingRecord[];
 }
 
-export default function MentorEarningsClient({ hourlyRate, bookings }: MentorEarningsClientProps) {
-  const earningFor = (booking: MentorEarningsClientProps['bookings'][number]) =>
-    Number(booking.mentor_earning_usd ?? booking.mentor_rate_usd ?? hourlyRate);
-  const total = bookings.reduce((sum, booking) => sum + earningFor(booking), 0);
-  const thisMonth = bookings.filter((booking) => {
-    const date = new Date(booking.start_at);
-    const now = new Date();
-    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+export default function MentorEarningsClient({
+  hourlyRate,
+  bookings,
+}: MentorEarningsClientProps) {
+  const [timeframe, setTimeframe] = useState<'all' | '6months' | 'year'>('all');
+  const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
+
+  const completedBookings = bookings.filter((b) => b.status === 'completed');
+  const pendingOrConfirmed = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending');
+
+  const earningFor = (booking: BookingRecord) => {
+    if (booking.mentor_earning_usd !== null && booking.mentor_earning_usd !== undefined) {
+      return Number(booking.mentor_earning_usd);
+    }
+    const hours = Math.max(
+      (new Date(booking.end_at).getTime() - new Date(booking.start_at).getTime()) / 3_600_000,
+      0
+    );
+    return Number(booking.mentor_rate_usd ?? hourlyRate) * hours;
+  };
+
+  const totalEarnings = completedBookings.reduce((sum, b) => sum + earningFor(b), 0);
+  const projectedEarnings = pendingOrConfirmed.reduce((sum, b) => sum + earningFor(b), 0);
+
+  const now = new Date();
+  const currentMonthBookings = completedBookings.filter((b) => {
+    const d = new Date(b.start_at);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
-  const thisMonthTotal = thisMonth.reduce((sum, booking) => sum + earningFor(booking), 0);
+  const currentMonthTotal = currentMonthBookings.reduce((sum, b) => sum + earningFor(b), 0);
 
-  return <div className="max-w-5xl mx-auto space-y-7">
-    <section className="relative overflow-hidden card rounded-3xl p-6 sm:p-8 border-glow-green">
-      <div className="absolute -right-10 -top-12 w-48 h-48 rounded-full blur-3xl" style={{ background: 'rgba(0,217,126,.15)' }} />
-      <div className="relative flex flex-col md:flex-row md:items-end justify-between gap-5">
-        <div>
-          <div className="flex items-center gap-2 text-neon-green text-xs font-bold uppercase tracking-[.16em]"><Wallet className="w-4 h-4" /> Mentor finance</div>
-          <h1 className="text-3xl font-black text-white mt-2">Earnings overview</h1>
-          <p className="mt-2 max-w-xl">Your earnings record is generated from completed mentoring sessions. Payouts will appear here once payment processing is enabled.</p>
+  const avgSessionRate = completedBookings.length > 0
+    ? totalEarnings / completedBookings.length
+    : hourlyRate;
+
+  // Monthly Aggregation Data for Chart
+  const getMonthlyChartData = () => {
+    const monthsMap: Record<string, { monthLabel: string; earnings: number; count: number; dateObj: Date }> = {};
+
+    // Generate last 6 or 12 months buckets
+    const monthsCount = timeframe === '6months' ? 6 : 12;
+    for (let i = monthsCount - 1; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = date.toLocaleDateString('en-US', { month: 'short' });
+      monthsMap[key] = { monthLabel, earnings: 0, count: 0, dateObj: date };
+    }
+
+    // Aggregate completed bookings
+    completedBookings.forEach((b) => {
+      const d = new Date(b.start_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (monthsMap[key]) {
+        monthsMap[key].earnings += earningFor(b);
+        monthsMap[key].count += 1;
+      }
+    });
+
+    return Object.values(monthsMap);
+  };
+
+  const chartData = getMonthlyChartData();
+  const maxMonthlyEarnings = Math.max(...chartData.map((d) => d.earnings), 100);
+
+  const handleExportCSV = () => {
+    if (completedBookings.length === 0) {
+      toast.error('No earnings records to export');
+      return;
+    }
+
+    const headers = ['Booking ID,Candidate Name,Candidate Email,Date,Earning (USD),Status\n'];
+    const rows = completedBookings.map((b) => {
+      const candidate = b.profiles?.[0] || (b.profiles as any);
+      const name = candidate?.full_name || 'Candidate';
+      const email = candidate?.email || 'N/A';
+      const date = new Date(b.start_at).toLocaleDateString();
+      const amount = earningFor(b).toFixed(2);
+      return `"${b.id}","${name}","${email}","${date}",${amount},"${b.status}"`;
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + headers.concat(rows).join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `mentor_earnings_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Earnings statement exported as CSV!');
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-7 animate-fade-up">
+      {/* Top Banner Card */}
+      <section className="relative overflow-hidden card rounded-3xl p-6 sm:p-8 border border-neon-green/30 bg-gradient-to-r from-neon-green/5 via-transparent to-neon-cyan/5">
+        <div className="absolute -right-10 -top-12 w-48 h-48 rounded-full blur-3xl bg-neon-green/15" />
+        <div className="relative flex flex-col md:flex-row md:items-end justify-between gap-5">
+          <div>
+            <div className="flex items-center gap-2 text-neon-green text-xs font-bold uppercase tracking-wider">
+              <Wallet className="w-4 h-4" /> Mentor Finance & Financial Analytics
+            </div>
+            <h1 className="text-3xl font-black text-white mt-2">Earnings Overview</h1>
+            <p className="mt-2 text-sm text-text-secondary max-w-xl">
+              Track revenue from completed candidate sessions, analyze monthly performance trends, and manage your hourly rate.
+            </p>
+          </div>
+
+          <Link href="/mentor/profile" className="btn-ghost text-xs py-2 px-4 flex items-center gap-2 border-white/10 text-white">
+            <CircleDollarSign className="w-4 h-4 text-neon-green" /> Hourly Rate: ${hourlyRate}/hr
+          </Link>
         </div>
-        <Link href="/mentor/profile" className="btn-ghost text-xs"><CircleDollarSign className="w-4 h-4 text-neon-green" /> Session rate: ${hourlyRate}</Link>
-      </div>
-    </section>
+      </section>
 
-    <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      {[
-        { label: 'All-time earnings', value: `$${total.toFixed(2)}`, detail: `${bookings.length} completed sessions`, Icon: CircleDollarSign, color: 'var(--neon-green)' },
-        { label: 'This month', value: `$${thisMonthTotal.toFixed(2)}`, detail: `${thisMonth.length} completed sessions`, Icon: TrendingUp, color: 'var(--neon-cyan)' },
-        { label: 'Available to payout', value: '$0.00', detail: 'Payouts are coming soon', Icon: Landmark, color: '#A78BFA' },
-      ].map(({ label, value, detail, Icon, color }) => <div key={label} className="stat-card">
-        <Icon className="w-5 h-5 mb-5" style={{ color }} />
-        <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{label}</p>
-        <div className="text-2xl font-black text-white mt-1">{value}</div>
-        <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>{detail}</p>
-      </div>)}
-    </section>
+      {/* Primary Key Financial Metric Cards */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="card rounded-2xl p-5 border border-white/10 space-y-2">
+          <div className="flex items-center justify-between text-text-muted">
+            <span className="text-xs font-semibold">Total Revenue</span>
+            <CircleDollarSign className="w-4 h-4 text-neon-green" />
+          </div>
+          <div className="text-2xl font-black text-white">${totalEarnings.toFixed(2)}</div>
+          <p className="text-xs text-neon-green font-mono">{completedBookings.length} paid sessions</p>
+        </div>
 
-    <section className="card rounded-2xl overflow-hidden">
-      <div className="p-5 flex flex-col sm:flex-row gap-3 justify-between sm:items-center border-b border-white/5">
-        <div><h2 className="text-lg font-bold text-white">Session earnings</h2><p className="text-xs mt-1">A line item is created when you submit feedback and complete a session.</p></div>
-        <button type="button" disabled className="btn-ghost text-xs opacity-60 cursor-not-allowed"><Download className="w-3.5 h-3.5" /> Export CSV soon</button>
-      </div>
-      {bookings.length === 0 ? <div className="p-12 text-center"><Calendar className="w-10 h-10 mx-auto text-text-muted mb-3" /><h3 className="font-bold text-white">No earnings yet</h3><p className="text-sm mt-1">Complete a candidate session to see it in your financial record.</p></div> : <div className="divide-y divide-white/5">
-        {bookings.map((booking) => <div key={booking.id} className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-          <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(0,217,126,.10)' }}><CheckCircle2 className="w-5 h-5 text-neon-green" /></div><div><p className="font-semibold text-white">{booking.profiles?.[0]?.full_name ?? 'Candidate session'}</p><p className="text-xs">{new Date(booking.start_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p></div></div>
-          <div className="flex items-center justify-between sm:justify-end gap-5"><span className="badge-green">Completed</span><span className="font-mono text-lg font-bold text-neon-green">+${earningFor(booking).toFixed(2)}</span></div>
-        </div>)}
-      </div>}
-    </section>
-  </div>;
+        <div className="card rounded-2xl p-5 border border-white/10 space-y-2">
+          <div className="flex items-center justify-between text-text-muted">
+            <span className="text-xs font-semibold">This Month</span>
+            <TrendingUp className="w-4 h-4 text-neon-cyan" />
+          </div>
+          <div className="text-2xl font-black text-neon-cyan">${currentMonthTotal.toFixed(2)}</div>
+          <p className="text-xs text-text-secondary">{currentMonthBookings.length} sessions completed</p>
+        </div>
+
+        <div className="card rounded-2xl p-5 border border-white/10 space-y-2">
+          <div className="flex items-center justify-between text-text-muted">
+            <span className="text-xs font-semibold">Avg Rate / Session</span>
+            <Star className="w-4 h-4 text-yellow-400" />
+          </div>
+          <div className="text-2xl font-black text-white">${avgSessionRate.toFixed(2)}</div>
+          <p className="text-xs text-text-muted">Per session average</p>
+        </div>
+
+        <div className="card rounded-2xl p-5 border border-white/10 space-y-2">
+          <div className="flex items-center justify-between text-text-muted">
+            <span className="text-xs font-semibold">Projected Upcoming</span>
+            <Landmark className="w-4 h-4 text-purple-400" />
+          </div>
+          <div className="text-2xl font-black text-purple-400">${projectedEarnings.toFixed(2)}</div>
+          <p className="text-xs text-text-secondary">{pendingOrConfirmed.length} pending/confirmed</p>
+        </div>
+      </section>
+
+      {/* Interactive Monthly Revenue Chart Card */}
+      <section className="card rounded-2xl p-6 border border-white/10 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-neon-green" /> Monthly Revenue Trend
+            </h2>
+            <p className="text-xs text-text-secondary mt-1">
+              Visual analytics showing monthly earnings in USD and completed sessions volume.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 self-start sm:self-auto">
+            {(['all', '6months', 'year'] as const).map((tKey) => (
+              <button
+                key={tKey}
+                onClick={() => setTimeframe(tKey)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
+                  timeframe === tKey
+                    ? 'bg-neon-green/20 text-neon-green border border-neon-green/30'
+                    : 'text-text-secondary hover:text-white'
+                }`}
+              >
+                {tKey === 'all' ? 'All Months' : tKey === '6months' ? 'Last 6 Months' : 'This Year'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* SVG Responsive Bar & Area Chart */}
+        <div className="h-64 w-full relative pt-8 pb-4 flex items-end gap-3 sm:gap-6 border-b border-white/10 px-2">
+          {chartData.map((data, index) => {
+            const barHeightPercent = Math.max((data.earnings / maxMonthlyEarnings) * 100, 6);
+            const isHovered = hoveredBarIndex === index;
+
+            return (
+              <div
+                key={data.monthLabel + index}
+                onMouseEnter={() => setHoveredBarIndex(index)}
+                onMouseLeave={() => setHoveredBarIndex(null)}
+                className="flex-1 flex flex-col items-center h-full justify-end relative group cursor-pointer"
+              >
+                {/* Tooltip on Hover */}
+                {isHovered && (
+                  <div className="absolute -top-12 z-20 bg-gray-900 text-white text-[11px] font-mono px-3 py-1.5 rounded-lg border border-neon-green/30 shadow-xl pointer-events-none whitespace-nowrap animate-fade-in">
+                    <p className="font-bold text-neon-green">${data.earnings.toFixed(2)}</p>
+                    <p className="text-[10px] text-text-muted">{data.count} session(s)</p>
+                  </div>
+                )}
+
+                {/* Animated Column Bar */}
+                <div
+                  className="w-full max-w-[42px] rounded-t-xl transition-all duration-300 relative overflow-hidden"
+                  style={{
+                    height: `${barHeightPercent}%`,
+                    background: isHovered
+                      ? 'linear-gradient(180deg, var(--neon-cyan), var(--neon-green))'
+                      : 'linear-gradient(180deg, rgba(0,217,126,0.8), rgba(0,217,126,0.2))',
+                    boxShadow: isHovered ? 'var(--glow-green)' : 'none',
+                  }}
+                >
+                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+
+                {/* Month Label below */}
+                <span className="text-[11px] font-mono mt-3 text-text-muted group-hover:text-white transition-colors">
+                  {data.monthLabel}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Detailed Financial Statement Table */}
+      <section className="card rounded-2xl overflow-hidden border border-white/10">
+        <div className="p-5 flex flex-col sm:flex-row gap-3 justify-between sm:items-center border-b border-white/10">
+          <div>
+            <h2 className="text-lg font-bold text-white">Session Earnings Record</h2>
+            <p className="text-xs text-text-secondary mt-1">
+              Detailed financial list for completed mentoring sessions.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="btn-ghost text-xs py-2 px-4 flex items-center gap-2 border-white/10 text-white hover:bg-white/10 cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-neon-green" /> Export CSV Statement
+          </button>
+        </div>
+
+        {completedBookings.length === 0 ? (
+          <div className="p-12 text-center">
+            <Calendar className="w-10 h-10 mx-auto text-text-muted mb-3" />
+            <h3 className="font-bold text-white text-base">No earnings record yet</h3>
+            <p className="text-xs text-text-secondary mt-1">
+              Complete a candidate interview session to view line item payout records.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {completedBookings.map((b) => {
+              const candidate = b.profiles?.[0] || (b.profiles as any);
+              const startDate = new Date(b.start_at);
+
+              return (
+                <div
+                  key={b.id}
+                  className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between hover:bg-white/[0.02] transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-neon-green/10 border border-neon-green/20 flex items-center justify-center text-neon-green shrink-0">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-white text-sm">
+                        {candidate?.full_name ?? 'Candidate Session'}
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        {candidate?.email} · {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between sm:justify-end gap-6">
+                    <span className="badge-green text-xs px-2.5 py-0.5">Completed</span>
+                    <span className="font-mono text-lg font-bold text-neon-green">
+                      +${earningFor(b).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }
