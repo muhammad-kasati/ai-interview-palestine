@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { playNotificationSound } from '@/lib/audio';
 
 export default function SessionReminderChecker() {
   useEffect(() => {
@@ -9,6 +10,7 @@ export default function SessionReminderChecker() {
         const res = await fetch('/api/cron/session-reminders', { method: 'POST' });
         const data = await res.json();
         if (data?.reminders1hSent > 0 || data?.remindersStartSent > 0) {
+          playNotificationSound();
           // Trigger custom app notification update event
           window.dispatchEvent(
             new CustomEvent('app-notification', {

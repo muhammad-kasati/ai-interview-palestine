@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BellRing, Eye, Loader2, Save, Settings2, Timer, CheckCircle, ShieldCheck, Bell, Mail, Clock, Globe } from 'lucide-react';
+import { BellRing, Eye, Loader2, Save, Settings2, Timer, CheckCircle, Bell, Mail, Clock, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 
@@ -86,7 +86,7 @@ export default function MentorSettingsClient({
         <button
           onClick={save}
           disabled={saving}
-          className="btn-neon-green self-start sm:self-auto text-xs py-2.5 px-5 flex items-center gap-2 shadow-lg"
+          className="btn-neon-green self-start sm:self-auto text-xs py-2.5 px-5 flex items-center gap-2 shadow-lg cursor-pointer"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? 'Saving…' : 'Save Settings'}
@@ -94,22 +94,22 @@ export default function MentorSettingsClient({
       </header>
 
       {/* ── Notifications & Alerts ─────────────────────────── */}
-      <section className="card rounded-2xl overflow-hidden border border-white/10">
+      <section className="card rounded-2xl p-6 border border-white/10 space-y-5">
         {/* Section header */}
-        <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div className="w-9 h-9 rounded-xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center text-neon-cyan shrink-0">
-            <BellRing className="w-4.5 h-4.5" />
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center text-neon-cyan shrink-0">
+            <BellRing className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-bold text-white text-sm">Notifications &amp; Alerts</h2>
-            <p className="text-[11px] text-text-secondary mt-0.5">
+            <h2 className="font-bold text-white text-base">Notifications &amp; Alerts</h2>
+            <p className="text-xs text-text-secondary mt-0.5">
               Choose which updates keep your sessions running smoothly.
             </p>
           </div>
         </div>
 
-        {/* Table rows */}
-        <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        {/* Setting rows without divide-y lines */}
+        <div className="space-y-3">
           <SettingRow
             Icon={Bell}
             iconBg="bg-neon-cyan/10"
@@ -141,20 +141,20 @@ export default function MentorSettingsClient({
       </section>
 
       {/* ── Profile Visibility + Buffer Time ──────────────── */}
-      <section className="card rounded-2xl overflow-hidden border border-white/10">
-        <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div className="w-9 h-9 rounded-xl bg-neon-green/10 border border-neon-green/20 flex items-center justify-center text-neon-green shrink-0">
-            <Globe className="w-4.5 h-4.5" />
+      <section className="card rounded-2xl p-6 border border-white/10 space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-neon-green/10 border border-neon-green/20 flex items-center justify-center text-neon-green shrink-0">
+            <Globe className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-bold text-white text-sm">Visibility &amp; Session Buffer</h2>
-            <p className="text-[11px] text-text-secondary mt-0.5">
+            <h2 className="font-bold text-white text-base">Visibility &amp; Session Buffer</h2>
+            <p className="text-xs text-text-secondary mt-0.5">
               Control your public listing and automatic break time after sessions.
             </p>
           </div>
         </div>
 
-        <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        <div className="space-y-3">
           <SettingRow
             Icon={Eye}
             iconBg="bg-neon-green/10"
@@ -164,8 +164,9 @@ export default function MentorSettingsClient({
             enabled={settings.profile_visible}
             onClick={() => toggle('profile_visible')}
           />
+
           {/* Buffer Time selector row */}
-          <div className="px-6 py-4 flex items-center justify-between gap-4">
+          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-neon-purple/10 border border-neon-purple/20 flex items-center justify-center text-neon-purple shrink-0">
                 <Timer className="w-4.5 h-4.5" />
@@ -195,11 +196,20 @@ export default function MentorSettingsClient({
       </section>
 
       {/* ── Save reminder banner ───────────────────────────── */}
-      <div className="flex items-center gap-3 rounded-xl px-4 py-3 text-xs" style={{ background: 'rgba(0,217,126,0.06)', border: '1px solid rgba(0,217,126,0.15)' }}>
-        <CheckCircle className="w-4 h-4 text-neon-green shrink-0" />
-        <span className="text-text-secondary">
-          Changes are applied immediately in-app once you click <span className="font-semibold text-white">Save Settings</span>.
-        </span>
+      <div className="flex items-center justify-between gap-3 rounded-xl px-5 py-4 text-xs bg-neon-green/[0.04] border border-neon-green/20">
+        <div className="flex items-center gap-3">
+          <CheckCircle className="w-4 h-4 text-neon-green shrink-0" />
+          <span className="text-text-secondary">
+            Changes will be saved to your workspace profile. Click <span className="font-semibold text-white">Save Settings</span> to confirm.
+          </span>
+        </div>
+        <button
+          onClick={save}
+          disabled={saving}
+          className="btn-neon-green text-xs py-1.5 px-4 shrink-0 cursor-pointer"
+        >
+          {saving ? 'Saving...' : 'Save Settings'}
+        </button>
       </div>
     </div>
   );
@@ -223,9 +233,9 @@ function SettingRow({
   onClick: () => void;
 }) {
   return (
-    <div className="px-6 py-4 flex items-center justify-between gap-4">
+    <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.04] flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`} style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+        <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${iconBg} ${iconColor} border-white/10`}>
           <Icon className="w-4 h-4" />
         </div>
         <div>
@@ -254,4 +264,3 @@ function SettingRow({
     </div>
   );
 }
-
