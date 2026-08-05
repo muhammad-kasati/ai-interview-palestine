@@ -60,7 +60,57 @@ export default function SetupWizard({ onStart, currentTier = 'free' }: SetupWiza
             <div className="grid md:grid-cols-2 gap-4"><Select label="Target Industry" value="general" onChange={() => {}} options={[["general", "General / Cross-Industry"], ["fintech", "FinTech"], ["ecommerce", "E-commerce"], ["health", "HealthTech"]]} /><div className="rounded-xl p-4" style={{ background: 'rgba(0,194,255,.04)', border: '1px solid rgba(0,194,255,.15)' }}><p className="text-xs font-semibold text-white">AI Model <span className="text-[9px]" style={{ color: 'var(--neon-cyan)' }}>FREE</span></p><p className="text-xs mt-1">Default model creates tailored questions using your role, skills, and preferences.</p></div></div>
           </div>}
         </section>
-      </> : <div className="space-y-5"><div><h2 className="text-lg font-bold text-white">Company research</h2><p className="text-sm mt-1">Add company context to generate more relevant interview questions.</p></div><div className="grid md:grid-cols-2 gap-4"><Input label="Company name" value={company} setValue={setCompany} placeholder="e.g. Google, Amazon, Meta" /><Input label="Target role" value={targetRole} setValue={setTargetRole} placeholder="e.g. Freelance Web Developer" /></div><div className="grid md:grid-cols-2 gap-4"><Select label="Target market" value={market} onChange={(value) => setMarket(value as typeof market)} options={[["global_remote", "Global / Remote"], ["local_palestine", "Palestinian local market"]]} /><Input label="Location" value="" setValue={() => {}} placeholder="e.g. Remote, Ramallah, Gaza" /></div><div className="rounded-xl p-4 text-sm" style={{ background: 'rgba(0,194,255,.06)', border: '1px solid rgba(0,194,255,.16)', color: 'var(--text-secondary)' }}>Company research will influence the examples and scenarios in your interview. You can continue without completing these fields.</div></div>}
+      </> : <div className="space-y-5">
+          <div>
+            <h2 className="text-lg font-bold text-white">Company research</h2>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Add company context to generate more relevant interview questions.</p>
+          </div>
+
+          <div className="rounded-xl p-4 space-y-4" style={{ background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.15)' }}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-white">🇵🇸 Practice for a Palestinian Company</span>
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(0,229,255,0.1)', color: 'var(--neon-cyan)' }}>Recommended</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {[
+                { name: 'Exalt Technologies', id: 'exalt' },
+                { name: 'Asal Technologies', id: 'asal' },
+                { name: 'Bisan Systems', id: 'bisan' },
+                { name: 'PalTech', id: 'paltech' },
+                { name: 'Jawwal', id: 'jawwal' },
+                { name: 'Makeen', id: 'makeen' },
+                { name: 'TechPal', id: 'techpal' },
+                { name: 'SKY Information', id: 'sky' },
+              ].map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCompany(c.name)}
+                  className="text-xs px-3 py-2 rounded-lg text-left transition-all"
+                  style={{
+                    background: company === c.name ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${company === c.name ? 'rgba(0,229,255,0.4)' : 'var(--border-subtle)'}`,
+                    color: company === c.name ? 'var(--neon-cyan)' : 'var(--text-secondary)',
+                  }}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <Input label="Company name" value={company} setValue={setCompany} placeholder="e.g. Google, Amazon, Meta" />
+            <Input label="Target role" value={targetRole} setValue={setTargetRole} placeholder="e.g. Full-Stack Developer" />
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <Select label="Target market" value={market} onChange={(value) => setMarket(value as typeof market)} options={[["global_remote", "Global / Remote"], ["local_palestine", "Palestinian local market"]]} />
+            <Input label="Location" value="" setValue={() => {}} placeholder="e.g. Remote, Ramallah, Gaza" />
+          </div>
+          <div className="rounded-xl p-4 text-sm" style={{ background: 'rgba(0,194,255,.06)', border: '1px solid rgba(0,194,255,.16)', color: 'var(--text-secondary)' }}>
+            Company research will influence the examples and scenarios in your interview. You can continue without completing these fields.
+          </div>
+        </div>}
       <section><Label text="Interview Type" required /><div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">{INTERVIEW_MODES.map(({ value, label, description, badge, Icon, color, requirement }) => { const selected = mode === value; const requiresUpgrade = (value === 'audio' && !['standard', 'premium', 'human'].includes(currentTier)) || (value === 'video' && !['premium', 'human'].includes(currentTier)); return <button type="button" key={value} onClick={() => setMode(value)} className="rounded-2xl p-4 text-left transition-all" style={{ background: selected ? `${color}12` : 'rgba(255,255,255,.025)', border: `1px solid ${selected ? color : 'var(--border-subtle)'}` }}><div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ background: `${color}18` }}><Icon className="w-5 h-5" style={{ color }} /></div><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{ color, background: `${color}18` }}>{badge}</span><h3 className="font-bold text-white mt-3">{label}</h3><p className="text-xs mt-1">{description}</p><p className="text-[10px] mt-3" style={{ color: requiresUpgrade ? 'var(--neon-amber)' : 'var(--text-muted)' }}>{requiresUpgrade ? 'Upgrade required · ' : ''}{requirement}</p></button>; })}</div></section>
       <button disabled={skills.length === 0} onClick={() => modeLocked ? router.push('/subscription') : mode === 'human' ? router.push('/mentors') : onStart({ jobRole, experienceLevel, techStack: skills, mode, targetMarket: market })} className="btn-cyan w-full justify-center py-3 text-sm disabled:opacity-50"><Play className="w-4 h-4" /> {modeLocked ? 'Upgrade to unlock this mode' : mode === 'human' ? 'Browse human coaches' : 'Start Interview'}</button>
     </div>

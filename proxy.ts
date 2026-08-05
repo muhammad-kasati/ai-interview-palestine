@@ -1,9 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_CANDIDATE = ["/dashboard", "/interview", "/reports", "/mentors"];
-// Keep these routes explicit: `/mentors` is a candidate route and must never
-// be interpreted as a mentor-area route.
+const PROTECTED_CANDIDATE = ["/dashboard", "/interview", "/reports", "/mentors", "/analytics", "/profile", "/referrals", "/sessions", "/settings", "/subscription", "/help"];
+// PUBLIC routes that must never be protected (no auth check)
+const PUBLIC_ROUTES = ["/mentors-public", "/companies", "/login", "/signup", "/"];
+
 const PROTECTED_MENTOR = [
   "/mentor/dashboard",
   "/mentor/sessions",
@@ -51,10 +52,14 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // ── Redirect unauthenticated users from protected routes
+  // Public routes are always allowed
+  const isPublic = PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
   const isProtected =
-    matchesRoute(pathname, PROTECTED_CANDIDATE) ||
-    matchesRoute(pathname, PROTECTED_MENTOR) ||
-    matchesRoute(pathname, PROTECTED_ADMIN);
+    !isPublic && (
+      matchesRoute(pathname, PROTECTED_CANDIDATE) ||
+      matchesRoute(pathname, PROTECTED_MENTOR) ||
+      matchesRoute(pathname, PROTECTED_ADMIN)
+    );
 
   if (isProtected && !user) {
     const loginUrl = request.nextUrl.clone();
@@ -62,6 +67,7 @@ export async function proxy(request: NextRequest) {
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
+
 
   // ── Redirect logged-in users away from auth pages
   if (user && (pathname === "/login" || pathname === "/signup")) {

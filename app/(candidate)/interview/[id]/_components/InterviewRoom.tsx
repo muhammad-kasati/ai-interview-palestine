@@ -4,8 +4,8 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Mic, MicOff, Video, Square, Clock, ChevronRight,
-  ChevronLeft, Send, CheckCircle, Loader2, Code2, Brain
+  Clock, ChevronRight, ChevronLeft, Send, CheckCircle,
+  Loader2, Code2, Brain, Bot, User, Sparkles, RotateCcw
 } from 'lucide-react';
 import AudioVisualizer from './AudioVisualizer';
 import TavusVideoAvatar from './TavusVideoAvatar';
@@ -47,6 +47,12 @@ interface InterviewRoomProps {
   candidateName: string;
 }
 
+interface ChatMessage {
+  role: 'ai' | 'user';
+  content: string;
+  timestamp: Date;
+}
+
 const DIFFICULTY_COLOR: Record<string, string> = {
   easy:   'var(--neon-green)',
   medium: '#FBBF24',
@@ -73,6 +79,13 @@ export default function InterviewRoom({ interview, questions, evaluation: initia
   const [showCode, setShowCode]   = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ── Text AI Chat state ─────────────────────────────────────────────────────
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatInitialized = useRef(false);
+
   const isCompleted = interview.status === 'completed' || evaluation !== null;
 
   // Timer
@@ -81,6 +94,23 @@ export default function InterviewRoom({ interview, questions, evaluation: initia
     timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isCompleted]);
+
+  // Initialize Text AI with first question
+  useEffect(() => {
+    if (interview.mode !== 'free' || chatInitialized.current || questions.length === 0 || isCompleted) return;
+    chatInitialized.current = true;
+    const q = questions[0];
+    setChatMessages([{
+      role: 'ai',
+      content: `👋 Welcome to your AI mock interview, ${candidateName}! I'm your Gemini-powered interviewer.\n\n**Question 1 of ${questions.length}:**\n\n${q.question}\n\nTake your time and answer as you would in a real interview.`,
+      timestamp: new Date(),
+    }]);
+  }, [interview.mode, questions, candidateName, isCompleted]);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -106,6 +136,61 @@ export default function InterviewRoom({ interview, questions, evaluation: initia
     setCurrentQ((q) => Math.max(q - 1, 0));
   }
 
+  // ── Send chat message (Text AI) ────────────────────────────────────────────
+  async function sendChatMessage() {
+    if (!chatInput.trim() || chatLoading) return;
+    const userMsg = chatInput.trim();
+    setChatInput('');
+
+    const userMessage: ChatMessage = { role: 'user', content: userMsg, timestamp: new Date() };
+    setChatMessages((prev) => [...prev, userMessage]);
+    setChatLoading(true);
+
+    // Save this answer
+    setAnswers((prev) => ({ ...prev, [currentQ]: userMsg }));
+
+    try {
+      const isLastQuestion = currentQ === questions.length - 1;
+      const nextQ = questions[currentQ + 1];
+
+      const res = await fetch('/api/interview/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interviewId: interview.id,
+          question: questions[currentQ].question,
+          answer: userMsg,
+          questionIndex: currentQ,
+          totalQuestions: questions.length,
+          nextQuestion: nextQ?.question ?? null,
+          jobRole: interview.jobRole,
+          experienceLevel: interview.experienceLevel,
+          techStack: interview.techStack,
+        }),
+      });
+
+      const data = await res.json();
+      const aiReply: ChatMessage = {
+        role: 'ai',
+        content: data.reply ?? 'Thank you for your answer.',
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, aiReply]);
+
+      if (!isLastQuestion) {
+        setCurrentQ((q) => q + 1);
+      }
+    } catch {
+      setChatMessages((prev) => [...prev, {
+        role: 'ai',
+        content: 'I had trouble processing that. Please try again.',
+        timestamp: new Date(),
+      }]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
   async function handleSubmit() {
     saveAnswer();
     setSubmitting(true);
@@ -115,16 +200,18 @@ export default function InterviewRoom({ interview, questions, evaluation: initia
       answer: answers[i] ?? '',
     }));
 
+    // For text AI mode, use chat messages as transcript
+    const transcript = interview.mode === 'free'
+      ? chatMessages.map((m) => `${m.role === 'ai' ? 'AI' : 'Candidate'}: ${m.content}`).join('\n\n')
+      : allAnswers.map((qa) => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n');
+
     const codeAnswer = code.trim() !== '// Write your solution here\n' ? `\n\nCode submission:\n\`\`\`\n${code}\n\`\`\`` : '';
-    const transcript = allAnswers
-      .map((qa) => `Q: ${qa.question}\nA: ${qa.answer}${codeAnswer}`)
-      .join('\n\n');
 
     try {
       const res = await fetch('/api/interview/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interviewId: interview.id, transcript, answers: allAnswers }),
+        body: JSON.stringify({ interviewId: interview.id, transcript: transcript + codeAnswer, answers: allAnswers }),
       });
       const data = await res.json();
       setEvaluation({
@@ -153,7 +240,7 @@ export default function InterviewRoom({ interview, questions, evaluation: initia
         <div className="text-center card rounded-2xl p-10" style={{ border: '1px solid rgba(0,255,102,0.2)' }}>
           <CheckCircle className="w-14 h-14 mx-auto mb-4" style={{ color: 'var(--neon-green)' }} />
           <h1 className="text-3xl font-black text-white mb-2">Interview Complete!</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Here's your Gemini AI evaluation</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Here&apos;s your Gemini AI evaluation</p>
           <div className="mt-6">
             <div className="text-7xl font-black" style={{ color: scoreColor, textShadow: `0 0 30px ${scoreColor}55` }}>
               {score.toFixed(0)}
@@ -259,80 +346,180 @@ export default function InterviewRoom({ interview, questions, evaluation: initia
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
 
         {/* LEFT: AI Interviewer Panel */}
-        <div className="card rounded-2xl p-5 flex flex-col min-h-0" style={{ border: '1px solid rgba(0,255,102,0.1)' }}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-semibold text-white">AI Interviewer</span>
-            <button
-              onClick={() => setShowCode(!showCode)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors lg:hidden"
-              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', cursor: 'pointer' }}
-            >
-              <Code2 className="w-3.5 h-3.5" />
-              {showCode ? 'Hide Code' : 'Code Editor'}
-            </button>
-          </div>
+        <div className="card rounded-2xl flex flex-col min-h-0" style={{ border: '1px solid rgba(0,255,102,0.1)' }}>
 
-          {/* AI Mode View */}
-          <div className="flex-1 flex flex-col min-h-0">
-            {interview.mode === 'video' ? (
-              <TavusVideoAvatar
-                interviewId={interview.id}
-                jobRole={interview.jobRole}
-                experienceLevel={interview.experienceLevel}
-                techStack={interview.techStack}
-                candidateName={candidateName}
-              />
-            ) : interview.mode === 'audio' ? (
-              <AudioVisualizer interviewId={interview.id} />
-            ) : (
-              /* Free text mode — show question prominently */
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-                <Brain className="w-12 h-12 mb-4" style={{ color: 'var(--neon-green)' }} />
-                <p className="text-sm font-medium mb-2" style={{ color: 'var(--neon-green)' }}>
-                  Question {currentQ + 1} of {questions.length}
-                </p>
-                {question && (
-                  <p className="text-xl font-semibold text-white leading-relaxed">
-                    {question.question}
-                  </p>
+          {/* ── Text AI Mode: full chat UI ────────────────────────────────── */}
+          {interview.mode === 'free' ? (
+            <>
+              {/* Chat header */}
+              <div className="flex items-center justify-between p-4 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(0,255,102,0.12)' }}>
+                    <Bot className="w-4 h-4" style={{ color: 'var(--neon-green)' }} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-white">Gemini AI Interviewer</div>
+                    <div className="text-xs flex items-center gap-1" style={{ color: 'var(--neon-green)' }}>
+                      <span className="pulse-dot" /> Online · Text Mode
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'rgba(0,255,102,0.08)', color: 'var(--neon-green)' }}>
+                  Q {Math.min(currentQ + 1, questions.length)} / {questions.length}
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    {/* Avatar */}
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{
+                      background: msg.role === 'ai' ? 'rgba(0,255,102,0.15)' : 'rgba(0,229,255,0.15)',
+                    }}>
+                      {msg.role === 'ai'
+                        ? <Bot className="w-3.5 h-3.5" style={{ color: 'var(--neon-green)' }} />
+                        : <User className="w-3.5 h-3.5" style={{ color: 'var(--neon-cyan)' }} />
+                      }
+                    </div>
+                    {/* Bubble */}
+                    <div
+                      className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap"
+                      style={{
+                        background: msg.role === 'ai' ? 'rgba(255,255,255,0.04)' : 'rgba(0,229,255,0.08)',
+                        border: `1px solid ${msg.role === 'ai' ? 'rgba(255,255,255,0.08)' : 'rgba(0,229,255,0.15)'}`,
+                        color: 'var(--text-primary)',
+                        borderTopLeftRadius: msg.role === 'ai' ? '4px' : '16px',
+                        borderTopRightRadius: msg.role === 'user' ? '4px' : '16px',
+                      }}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex gap-3">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(0,255,102,0.15)' }}>
+                      <Bot className="w-3.5 h-3.5" style={{ color: 'var(--neon-green)' }} />
+                    </div>
+                    <div className="px-4 py-3 rounded-2xl text-sm flex items-center gap-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderTopLeftRadius: '4px' }}>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--neon-green)' }} />
+                      <span style={{ color: 'var(--text-muted)' }}>Gemini is thinking…</span>
+                    </div>
+                  </div>
                 )}
+                <div ref={chatEndRef} />
               </div>
-            )}
-          </div>
 
-          {/* Question Card (audio/video modes) */}
-          {interview.mode !== 'free' && question && (
-            <div className="mt-4 p-4 rounded-xl" style={{ background: 'rgba(0,255,102,0.04)', border: '1px solid rgba(0,255,102,0.12)' }}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-bold" style={{ color: CATEGORY_COLOR[question.category] ?? 'var(--text-muted)' }}>
-                  {question.category.replace('_', ' ').toUpperCase()}
-                </span>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${DIFFICULTY_COLOR[question.difficulty] ?? '#888'}22`, color: DIFFICULTY_COLOR[question.difficulty] ?? '#888' }}>
-                  {question.difficulty}
-                </span>
+              {/* Input */}
+              <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="flex gap-2 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <textarea
+                    id="chat-input"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+                    }}
+                    placeholder="Type your answer here… (Enter to send, Shift+Enter for new line)"
+                    rows={2}
+                    className="flex-1 bg-transparent p-3 text-sm resize-none outline-none"
+                    style={{ color: 'var(--text-primary)' }}
+                    disabled={chatLoading}
+                  />
+                  <button
+                    onClick={sendChatMessage}
+                    disabled={chatLoading || !chatInput.trim()}
+                    className="px-4 m-1.5 rounded-lg flex items-center justify-center transition-all"
+                    style={{
+                      background: chatInput.trim() ? 'var(--neon-green)' : 'rgba(255,255,255,0.06)',
+                      color: chatInput.trim() ? '#050608' : 'var(--text-muted)',
+                      cursor: chatInput.trim() ? 'pointer' : 'default',
+                    }}
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-xs mt-1.5 text-center" style={{ color: 'var(--text-muted)' }}>
+                  <Sparkles className="w-3 h-3 inline mr-1" style={{ color: 'var(--neon-green)' }} />
+                  Powered by Gemini · Your answers are auto-saved
+                </p>
               </div>
-              <p className="text-sm font-medium text-white">{question.question}</p>
-            </div>
+            </>
+          ) : (
+            <>
+              {/* Audio / Video / Human modes */}
+              <div className="flex items-center justify-between p-4 mb-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="text-sm font-semibold text-white">AI Interviewer</span>
+                <button
+                  onClick={() => setShowCode(!showCode)}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors lg:hidden"
+                  style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                >
+                  <Code2 className="w-3.5 h-3.5" />
+                  {showCode ? 'Hide Code' : 'Code Editor'}
+                </button>
+              </div>
+
+              <div className="flex-1 flex flex-col min-h-0 p-5">
+                {interview.mode === 'video' ? (
+                  <TavusVideoAvatar
+                    interviewId={interview.id}
+                    jobRole={interview.jobRole}
+                    experienceLevel={interview.experienceLevel}
+                    techStack={interview.techStack}
+                    candidateName={candidateName}
+                  />
+                ) : interview.mode === 'audio' ? (
+                  <AudioVisualizer interviewId={interview.id} />
+                ) : null}
+              </div>
+
+              {/* Question Card (audio/video modes) */}
+              {question && (
+                <div className="mx-5 mb-5 p-4 rounded-xl" style={{ background: 'rgba(0,255,102,0.04)', border: '1px solid rgba(0,255,102,0.12)' }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-bold" style={{ color: CATEGORY_COLOR[question.category] ?? 'var(--text-muted)' }}>
+                      {question.category.replace('_', ' ').toUpperCase()}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${DIFFICULTY_COLOR[question.difficulty] ?? '#888'}22`, color: DIFFICULTY_COLOR[question.difficulty] ?? '#888' }}>
+                      {question.difficulty}
+                    </span>
+                  </div>
+                  <p className="text-sm font-medium text-white">{question.question}</p>
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        {/* RIGHT: Code Editor / Answer Panel */}
-        <div className={`card rounded-2xl flex flex-col min-h-0 ${showCode ? 'flex' : 'hidden lg:flex'}`} style={{ border: '1px solid rgba(0,229,255,0.1)' }}>
+        {/* RIGHT: Code Editor / Answer Panel (hidden in Text AI mode on mobile) */}
+        <div
+          className={`card rounded-2xl flex flex-col min-h-0 ${interview.mode === 'free' ? 'hidden lg:flex' : showCode ? 'flex' : 'hidden lg:flex'}`}
+          style={{ border: '1px solid rgba(0,229,255,0.1)' }}
+        >
           <div className="flex items-center justify-between p-4 pb-0">
             <div className="flex items-center gap-2">
               <Code2 className="w-4 h-4" style={{ color: 'var(--neon-cyan)' }} />
               <span className="text-sm font-semibold text-white">Code Editor</span>
             </div>
             {/* Question Nav */}
-            <div className="flex items-center gap-2">
-              <button onClick={prevQuestion} disabled={currentQ === 0} className="p-1.5 rounded-lg transition-colors" style={{ color: currentQ === 0 ? 'var(--text-muted)' : 'var(--text-secondary)', cursor: currentQ === 0 ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)' }}>
-                <ChevronLeft className="w-4 h-4" />
+            {interview.mode !== 'free' && (
+              <div className="flex items-center gap-2">
+                <button onClick={prevQuestion} disabled={currentQ === 0} className="p-1.5 rounded-lg transition-colors" style={{ color: currentQ === 0 ? 'var(--text-muted)' : 'var(--text-secondary)', cursor: currentQ === 0 ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)' }}>
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{currentQ + 1}/{questions.length}</span>
+                <button onClick={nextQuestion} disabled={currentQ === questions.length - 1} className="p-1.5 rounded-lg transition-colors" style={{ color: currentQ === questions.length - 1 ? 'var(--text-muted)' : 'var(--text-secondary)', cursor: currentQ === questions.length - 1 ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)' }}>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            {interview.mode === 'free' && (
+              <button onClick={() => setCode('// Write your solution here\n')} className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>
+                <RotateCcw className="w-3 h-3" /> Reset
               </button>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{currentQ + 1}/{questions.length}</span>
-              <button onClick={nextQuestion} disabled={currentQ === questions.length - 1} className="p-1.5 rounded-lg transition-colors" style={{ color: currentQ === questions.length - 1 ? 'var(--text-muted)' : 'var(--text-secondary)', cursor: currentQ === questions.length - 1 ? 'default' : 'pointer', background: 'rgba(255,255,255,0.05)' }}>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            )}
           </div>
 
           {/* Monaco Editor */}
@@ -355,25 +542,27 @@ export default function InterviewRoom({ interview, questions, evaluation: initia
             />
           </div>
 
-          {/* Text Answer Area */}
-          <div className="p-3 pt-0">
-            {question && (
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="px-3 py-2 text-xs" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)' }}>
-                  Your answer to: {question.question.slice(0, 60)}…
+          {/* Text Answer Area (non-free modes) */}
+          {interview.mode !== 'free' && (
+            <div className="p-3 pt-0">
+              {question && (
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="px-3 py-2 text-xs" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)' }}>
+                    Your answer to: {question.question.slice(0, 60)}…
+                  </div>
+                  <textarea
+                    id="text-answer"
+                    value={textAnswer}
+                    onChange={(e) => setTextAnswer(e.target.value)}
+                    placeholder="Type your answer here, or use the code editor above…"
+                    rows={4}
+                    className="w-full p-3 text-sm resize-none outline-none"
+                    style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}
+                  />
                 </div>
-                <textarea
-                  id="text-answer"
-                  value={textAnswer}
-                  onChange={(e) => setTextAnswer(e.target.value)}
-                  placeholder="Type your answer here, or use the code editor above…"
-                  rows={4}
-                  className="w-full p-3 text-sm resize-none outline-none"
-                  style={{ background: 'rgba(255,255,255,0.02)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}
-                />
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -383,12 +572,18 @@ export default function InterviewRoom({ interview, questions, evaluation: initia
           {questions.map((_, i) => (
             <button
               key={i}
-              onClick={() => { saveAnswer(); setCurrentQ(i); setTextAnswer(answers[i] ?? ''); }}
+              onClick={() => {
+                if (interview.mode !== 'free') {
+                  saveAnswer();
+                  setCurrentQ(i);
+                  setTextAnswer(answers[i] ?? '');
+                }
+              }}
               className="w-7 h-7 rounded-full text-xs font-bold transition-all"
               style={{
                 background: i === currentQ ? 'var(--neon-green)' : answers[i] ? 'rgba(0,255,102,0.2)' : 'rgba(255,255,255,0.07)',
                 color: i === currentQ ? '#050608' : answers[i] ? 'var(--neon-green)' : 'var(--text-muted)',
-                cursor: 'pointer',
+                cursor: interview.mode !== 'free' ? 'pointer' : 'default',
               }}
             >
               {i + 1}
