@@ -1,6 +1,12 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { Zap, Mic, Video, Users, Star, ArrowRight, CheckCircle, Code2, Brain, Globe, Shield, Building2, MapPin, ChevronRight, Award, Clock } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
+import UserDropdownMenu from '@/components/UserDropdownMenu';
+import {
+  Zap, Mic, Video, Users, Star, ArrowRight, CheckCircle, Code2, Brain,
+  Globe, Shield, Building2, MapPin, ChevronRight, Award, Clock,
+  Sparkles, FileText, Target, Layers, Bot, ArrowUpRight
+} from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'InterviewAI Palestine — AI Mock Interview Platform',
@@ -77,7 +83,7 @@ const steps = [
   { step: '03', title: 'Practice & Get Feedback', desc: 'Complete a real-time AI interview or book a 1-on-1 session with a Palestinian senior engineer.', Icon: Star },
 ];
 
-const features = [
+const platformFeatures = [
   { Icon: Brain,  title: 'Gemini-Powered Questions',      desc: 'Tailored technical questions based on your resume, role, and seniority level.' },
   { Icon: Mic,    title: 'Real-Time Voice Interviews',    desc: 'Ultra-low-latency audio AI via Vapi.ai — just talk like a real interview.' },
   { Icon: Video,  title: 'Face-to-Face Video Avatar',     desc: 'Lifelike AI interviewer via Tavus CVI for the most realistic prep experience.' },
@@ -97,18 +103,76 @@ const companies = [
   { name: 'SKY Information', city: 'Ramallah', specialty: 'AI & Data' },
 ];
 
-const mentors = [
-  { name: 'Ahmad Khalil', role: 'Senior Full-Stack Engineer', company: 'Exalt Technologies', rating: 4.9, sessions: 128, specialties: ['React', 'Node.js', 'AWS'], avatar: 'AK' },
-  { name: 'Sara Mansour', role: 'Lead Backend Developer', company: 'Asal Technologies', rating: 4.8, sessions: 94, specialties: ['Python', 'Django', 'PostgreSQL'], avatar: 'SM' },
-  { name: 'Omar Nasser', role: 'DevOps & Cloud Architect', company: 'Jawwal', rating: 5.0, sessions: 67, specialties: ['Docker', 'Kubernetes', 'AWS'], avatar: 'ON' },
-  { name: 'Lina Barakat', role: 'Mobile Developer', company: 'PalTech', rating: 4.7, sessions: 112, specialties: ['React Native', 'Flutter', 'Firebase'], avatar: 'LB' },
+const FALLBACK_HOMEPAGE_MENTORS = [
+  { id: 'm1', name: 'Ahmad Khalil', role: 'Senior Full-Stack Engineer', company: 'Exalt Technologies', rating: 4.9, sessions: 128, rate: 35, specialties: ['React', 'Node.js', 'AWS'], avatar: null, initials: 'AK' },
+  { id: 'm2', name: 'Sara Mansour', role: 'Lead Backend Developer', company: 'Asal Technologies', rating: 4.8, sessions: 94, rate: 30, specialties: ['Python', 'Django', 'PostgreSQL'], avatar: null, initials: 'SM' },
+  { id: 'm3', name: 'Omar Nasser', role: 'DevOps & Cloud Architect', company: 'Jawwal', rating: 5.0, sessions: 67, rate: 40, specialties: ['Docker', 'Kubernetes', 'AWS'], avatar: null, initials: 'ON' },
+  { id: 'm4', name: 'Lina Barakat', role: 'Mobile Developer', company: 'PalTech', rating: 4.7, sessions: 112, rate: 28, specialties: ['React Native', 'Flutter', 'Firebase'], avatar: null, initials: 'LB' },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient();
+
+  // 1. Auth check & profile for UserDropdownMenu
+  const { data: { user } } = await supabase.auth.getUser();
+
+  let userProfile: { full_name?: string; avatar_url?: string; role?: string } | null = null;
+  let userSubscriptionTier = 'Free';
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url, role')
+      .eq('id', user.id)
+      .single();
+    userProfile = profile;
+
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('tier')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single();
+    if (sub?.tier) userSubscriptionTier = sub.tier;
+  }
+
+  const dashboardUrl = userProfile?.role === 'admin'
+    ? '/admin/dashboard'
+    : userProfile?.role === 'mentor'
+    ? '/mentor/dashboard'
+    : '/dashboard';
+
+  // 2. DYNAMIC MENTORS QUERY FROM SUPABASE DATABASE
+  const { data: dbMentors } = await supabase
+    .from('mentors')
+    .select(`
+      id, verified, hourly_rate_usd, specializations, years_experience,
+      company, rating, sessions_completed,
+      profiles(full_name, avatar_url, bio, title)
+    `)
+    .eq('verified', true)
+    .order('rating', { ascending: false })
+    .limit(4);
+
+  const mentors = (dbMentors && dbMentors.length > 0)
+    ? dbMentors.map((m: any) => ({
+        id: m.id,
+        name: m.profiles?.full_name ?? 'Senior Mentor',
+        role: m.profiles?.title ?? 'Senior Engineer',
+        company: m.company ?? 'Palestinian Tech Company',
+        rating: m.rating ?? 5.0,
+        sessions: m.sessions_completed ?? 0,
+        rate: m.hourly_rate_usd ?? 35,
+        specialties: (m.specializations && m.specializations.length > 0) ? m.specializations : ['React', 'Node.js', 'AWS'],
+        avatar: m.profiles?.avatar_url ?? null,
+        initials: (m.profiles?.full_name ?? 'PS').split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase(),
+      }))
+    : FALLBACK_HOMEPAGE_MENTORS;
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-base)' }}>
 
-      {/* ── Navigation ────────────────────────────────────────────────────── */}
+      {/* ── Navigation Header ────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50" style={{ background: 'rgba(5,6,8,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="container-page flex items-center justify-between h-16">
           <div className="flex items-center gap-2.5">
@@ -125,106 +189,215 @@ export default function LandingPage() {
             <Link href="/mentors-public" className="text-sm transition-colors hover:text-white" style={{ color: 'var(--text-secondary)' }}>Mentors</Link>
             <Link href="/companies" className="text-sm transition-colors hover:text-white" style={{ color: 'var(--text-secondary)' }}>Companies</Link>
           </div>
+
           <div className="flex items-center gap-3">
-            <Link href="/login" className="btn-ghost" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>Sign In</Link>
-            <Link href="/signup" className="btn-neon-green" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>Get Started</Link>
+            {user ? (
+              <UserDropdownMenu
+                user={user}
+                profile={userProfile}
+                subscriptionTier={userSubscriptionTier}
+                dashboardUrl={dashboardUrl}
+              />
+            ) : (
+              <div className="flex items-center gap-3">
+                <Link href="/login" className="btn-ghost" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>Sign In</Link>
+                <Link href="/signup" className="btn-neon-green" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>Get Started</Link>
+              </div>
+            )}
           </div>
         </div>
       </nav>
 
-      {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden" style={{ paddingTop: '5rem', paddingBottom: '5rem' }}>
+      {/* ── Hero Section (2-Column Layout matching reference image) ──────── */}
+      <section className="relative overflow-hidden" style={{ paddingTop: '4rem', paddingBottom: '5rem' }}>
         {/* Background glows */}
         <div className="absolute inset-0 bg-grid" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full opacity-20" style={{ background: 'radial-gradient(ellipse, rgba(0,255,102,0.3) 0%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none' }} />
-        <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full opacity-10" style={{ background: 'radial-gradient(ellipse, rgba(0,229,255,0.4) 0%, transparent 70%)', filter: 'blur(80px)', pointerEvents: 'none' }} />
+        <div className="absolute top-0 left-1/4 w-[800px] h-[500px] rounded-full opacity-20" style={{ background: 'radial-gradient(ellipse, rgba(0,255,102,0.3) 0%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none' }} />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full opacity-15" style={{ background: 'radial-gradient(ellipse, rgba(0,229,255,0.4) 0%, transparent 70%)', filter: 'blur(80px)', pointerEvents: 'none' }} />
 
         <div className="container-page relative">
-          {/* Top badge */}
-          <div className="flex justify-center mb-8">
-            <span className="badge-green">
-              <span className="pulse-dot" />
-              AI-Powered · Live Now
-            </span>
-          </div>
+          <div className="grid lg:grid-cols-12 gap-8 items-start">
 
-          <h1 className="text-center font-black leading-[1.06] tracking-tight mb-6" style={{ fontSize: 'clamp(2.8rem, 7vw, 5.5rem)', maxWidth: '900px', margin: '0 auto 1.5rem' }}>
-            Ace Every Tech Interview{' '}
-            <span className="shimmer-text">in Palestine</span>
-          </h1>
+            {/* Left Column (Content, CTAs, Feature Cards) */}
+            <div className="lg:col-span-7 space-y-7 text-left">
 
-          <p className="text-center max-w-2xl mx-auto mb-10 leading-relaxed" style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.375rem)', color: 'var(--text-secondary)' }}>
-            Practice with a real-time AI interviewer powered by Gemini, Vapi &amp; Tavus.
-            Then book a 1-on-1 session with a senior engineer from a local Palestinian tech company.
-          </p>
+              {/* Pill tags above title */}
+              <div className="flex flex-wrap gap-2">
+                {['RESUME + JD QUESTIONS', 'ANY LANGUAGE', 'VOICE AGENT', 'EVIDENCE REPORT'].map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[10px] sm:text-xs font-bold px-3 py-1.5 rounded-full border transition-all"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      borderColor: 'rgba(255,255,255,0.1)',
+                      color: 'var(--text-secondary)',
+                      letterSpacing: '0.06em'
+                    }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
 
-          {/* Hero CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <Link href="/signup" className="btn-neon-green" style={{ padding: '0.9rem 2.25rem', fontSize: '1.125rem' }}>
-              Start Practicing Free
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link href="#pricing" className="btn-ghost" style={{ padding: '0.9rem 2.25rem', fontSize: '1.125rem' }}>
-              See Pricing
-            </Link>
-          </div>
+              {/* Main Headline */}
+              <h1 className="font-black leading-[1.08] tracking-tight text-white" style={{ fontSize: 'clamp(2.4rem, 5.2vw, 4.25rem)' }}>
+                Practice with AI.{' '}
+                <span className="text-amber-300" style={{ textShadow: '0 0 25px rgba(253,224,71,0.3)' }}>
+                  Get coached on every answer.
+                </span>{' '}
+                Land the role.
+              </h1>
 
-          {/* ── Hero: Side-by-side images ── */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-16">
-            {/* Left — Robot Interviewer */}
-            <div className="relative">
-              <div className="absolute inset-0 rounded-3xl opacity-30" style={{ background: 'radial-gradient(circle at center, var(--neon-green) 0%, var(--neon-cyan) 50%, transparent 75%)', filter: 'blur(50px)' }} />
-              <div className="relative rounded-3xl overflow-hidden p-2" style={{ background: 'linear-gradient(135deg, rgba(0,255,102,0.3), rgba(0,229,255,0.3), rgba(124,58,237,0.3))', boxShadow: '0 20px 80px rgba(0,0,0,0.8)' }}>
-                <img
-                  src="/robot_interviewer.png"
-                  alt="AI Robot Interviewer"
-                  className="w-full h-auto rounded-2xl object-cover animate-float"
-                  style={{ maxHeight: '380px', objectPosition: 'center' }}
-                />
-                <div className="absolute bottom-6 left-6 right-6 glass p-3 rounded-xl flex items-center justify-between text-left border" style={{ borderColor: 'rgba(0,255,102,0.3)' }}>
-                  <div className="flex items-center gap-3">
-                    <span className="pulse-dot" />
-                    <div>
-                      <div className="text-sm font-bold text-white">AI Robot Interviewer</div>
-                      <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Technical, Behavioral &amp; System Design</div>
+              {/* Subtitle */}
+              <p className="text-base sm:text-lg leading-relaxed max-w-xl" style={{ color: 'var(--text-secondary)' }}>
+                Upload your resume and job description. The AI builds your question set, scores each response for evidence gaps, and delivers the retry plan that turns weak answers into offers.
+              </p>
+
+              {/* CTA Action Buttons */}
+              <div className="flex flex-wrap gap-4 pt-2">
+                <Link
+                  href={user ? '/interview/new' : '/signup'}
+                  className="btn-neon-green text-base px-7 py-3.5 flex items-center gap-2 rounded-full shadow-xl"
+                  style={{ boxShadow: '0 0 30px rgba(0,255,102,0.3)' }}
+                >
+                  <Sparkles className="w-5 h-5" />
+                  <span>Start Free Interview</span>
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+                <Link
+                  href="/mentors-public"
+                  className="btn-ghost text-base px-7 py-3.5 flex items-center gap-2 rounded-full border-white/15"
+                >
+                  <span>Browse Mentors</span>
+                  <ChevronRight className="w-5 h-5 text-neon-cyan" />
+                </Link>
+              </div>
+
+              {/* Small Bullet Badges below CTAs */}
+              <div className="flex flex-wrap items-center gap-5 text-xs text-text-secondary pt-1">
+                <span className="flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-neon-green" /> AI-powered practice
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-neon-cyan" /> No credit card required
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-amber-400" /> Real-time feedback
+                </span>
+              </div>
+
+              {/* 2x2 Feature Cards Grid below left text */}
+              <div className="grid sm:grid-cols-2 gap-4 pt-4">
+                {[
+                  {
+                    icon: FileText,
+                    iconColor: 'var(--neon-green)',
+                    title: 'Resume + JD questions',
+                    desc: 'Built from your resume, job details, skills, role, and selected language.'
+                  },
+                  {
+                    icon: Target,
+                    iconColor: 'var(--neon-cyan)',
+                    title: 'Answer-level coaching',
+                    desc: 'Each response scored on evidence, missing proof, and next stronger retry.'
+                  },
+                  {
+                    icon: Layers,
+                    iconColor: '#A78BFA',
+                    title: '50+ round formats',
+                    desc: 'Behavioral, technical, case, panel, leadership, and resume deep-dives.'
+                  },
+                  {
+                    icon: Bot,
+                    iconColor: '#FBBF24',
+                    title: 'AI model selection',
+                    desc: 'Access to top AI models from leading providers (Gemini, Vapi, Tavus).'
+                  },
+                ].map(({ icon: Icon, iconColor, title, desc }) => (
+                  <div
+                    key={title}
+                    className="card rounded-2xl p-4 transition-all hover:border-white/20"
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  >
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2.5" style={{ background: `${iconColor}15` }}>
+                      <Icon className="w-4 h-4" style={{ color: iconColor }} />
                     </div>
+                    <h3 className="font-bold text-white text-sm mb-1">{title}</h3>
+                    <p className="text-xs leading-relaxed text-text-secondary">{desc}</p>
                   </div>
-                  <span className="badge-green text-xs">Live Engine</span>
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* Right — AI Feedback Card */}
-            <div className="relative">
-              <div className="absolute inset-0 rounded-3xl opacity-25" style={{ background: 'radial-gradient(circle at center, var(--neon-cyan) 0%, #A78BFA 50%, transparent 75%)', filter: 'blur(50px)' }} />
-              <div className="relative rounded-3xl overflow-hidden p-2" style={{ background: 'linear-gradient(135deg, rgba(0,229,255,0.25), rgba(124,58,237,0.25), rgba(0,255,102,0.15))', boxShadow: '0 20px 80px rgba(0,0,0,0.8)' }}>
-                <img
-                  src="/ai_feedback_card.png"
-                  alt="AI Interview Feedback Card"
-                  className="w-full h-auto rounded-2xl object-cover"
-                  style={{ maxHeight: '380px', objectFit: 'cover', objectPosition: 'top' }}
-                />
-                <div className="absolute bottom-6 left-6 right-6 glass p-3 rounded-xl flex items-center justify-between text-left border" style={{ borderColor: 'rgba(0,229,255,0.3)' }}>
-                  <div className="flex items-center gap-3">
-                    <Award className="w-4 h-4" style={{ color: 'var(--neon-cyan)' }} />
-                    <div>
-                      <div className="text-sm font-bold text-white">AI Feedback Report</div>
-                      <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Scores, strengths &amp; improvement areas</div>
+            {/* Right Column: AI Feedback Card Image standing alongside headline */}
+            <div className="lg:col-span-5 relative mt-4 lg:mt-0">
+              <div className="sticky top-24">
+                <div className="absolute inset-0 rounded-3xl opacity-30" style={{ background: 'radial-gradient(circle at center, var(--neon-cyan) 0%, #A78BFA 50%, transparent 75%)', filter: 'blur(50px)' }} />
+
+                {/* Mockup Frame Container */}
+                <div className="relative rounded-3xl overflow-hidden p-2" style={{ background: 'linear-gradient(135deg, rgba(0,229,255,0.25), rgba(124,58,237,0.25), rgba(0,255,102,0.15))', boxShadow: '0 25px 80px rgba(0,0,0,0.85)' }}>
+
+                  {/* Browser window top bar */}
+                  <div className="bg-[#0b0f17] px-4 py-2.5 flex items-center justify-between rounded-t-2xl border-b border-white/10">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+                      <div className="w-3 h-3 rounded-full bg-green-500/80" />
                     </div>
+                    <span className="text-[10px] font-mono tracking-wider uppercase text-text-muted">VIRTUALINTERVIEW.AI FEEDBACK</span>
                   </div>
-                  <span className="badge-cyan text-xs">Instant</span>
+
+                  {/* Image itself */}
+                  <div className="relative overflow-hidden bg-[#0d1117]">
+                    <img
+                      src="/ai_feedback_card.png"
+                      alt="AI Interview Feedback Card Preview"
+                      className="w-full h-auto rounded-b-2xl object-cover shadow-2xl"
+                      style={{ maxHeight: '520px', objectPosition: 'top' }}
+                    />
+                  </div>
+
+                  {/* Bottom overlay badge */}
+                  <div className="absolute bottom-6 left-6 right-6 glass p-3.5 rounded-xl flex items-center justify-between text-left border" style={{ borderColor: 'rgba(0,229,255,0.3)' }}>
+                    <div className="flex items-center gap-3">
+                      <Award className="w-5 h-5 text-neon-cyan" />
+                      <div>
+                        <div className="text-sm font-bold text-white">AI Interview Feedback Report</div>
+                        <div className="text-xs text-text-secondary">Instant breakdown of strengths &amp; areas to improve</div>
+                      </div>
+                    </div>
+                    <span className="badge-cyan text-xs font-bold shrink-0">Live Preview</span>
+                  </div>
                 </div>
+
+                {/* Robot Graphic Preview Box below */}
+                <div className="mt-4 card p-3.5 rounded-2xl flex items-center gap-3 border-white/10">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-neon-green/30">
+                    <img src="/robot_interviewer.png" alt="Robot Interviewer" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-white">AI Robot Interviewer Engine</h4>
+                      <span className="badge-green text-[9px] px-2 py-0.5">Gemini 2.0</span>
+                    </div>
+                    <p className="text-[11px] text-text-muted truncate mt-0.5">
+                      Tailored for Palestinian tech companies &amp; global remote roles
+                    </p>
+                  </div>
+                </div>
+
               </div>
             </div>
+
           </div>
 
-          {/* Stats */}
-          <div className="flex flex-wrap justify-center gap-10 md:gap-20">
+          {/* Stats Bar */}
+          <div className="flex flex-wrap justify-center gap-10 md:gap-20 pt-16 border-t mt-16" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
             {[
               { value: '500+', label: 'Engineers Prepared' },
               { value: '50+',  label: 'Verified Mentors' },
               { value: '4.9',  label: 'Average Rating' },
-              { value: '3',    label: 'AI Modes' },
+              { value: '3',    label: 'AI Practice Modes' },
             ].map(({ value, label }) => (
               <div key={label} className="text-center">
                 <div className="font-black mb-1" style={{ fontSize: 'clamp(1.75rem, 4vw, 2.25rem)', color: 'var(--neon-green)', textShadow: '0 0 20px rgba(0,255,102,0.4)' }}>{value}</div>
@@ -246,9 +419,9 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
-              { Icon: Brain,  title: 'Text AI',       desc: 'Chat-based Q&A with Gemini', badge: 'Free', badgeClass: 'badge-green',  glow: 'rgba(0,255,102,0.08)',  border: 'rgba(0,255,102,0.15)',  iconColor: 'var(--neon-green)', href: '/signup' },
-              { Icon: Mic,    title: 'Audio AI',      desc: 'Real-time voice with Vapi',  badge: 'Standard', badgeClass: 'badge-green', glow: 'rgba(0,255,102,0.06)', border: 'rgba(0,255,102,0.12)', iconColor: 'var(--neon-green)', href: '/signup' },
-              { Icon: Video,  title: 'Video Avatar',  desc: 'Face-to-face with Tavus',    badge: 'Premium', badgeClass: 'badge-cyan',  glow: 'rgba(0,229,255,0.08)',  border: 'rgba(0,229,255,0.15)',  iconColor: 'var(--neon-cyan)', href: '/signup' },
+              { Icon: Brain,  title: 'Text AI',       desc: 'Chat-based Q&A with Gemini', badge: 'Free', badgeClass: 'badge-green',  glow: 'rgba(0,255,102,0.08)',  border: 'rgba(0,255,102,0.15)',  iconColor: 'var(--neon-green)', href: user ? '/interview/new' : '/signup' },
+              { Icon: Mic,    title: 'Audio AI',      desc: 'Real-time voice with Vapi',  badge: 'Standard', badgeClass: 'badge-green', glow: 'rgba(0,255,102,0.06)', border: 'rgba(0,255,102,0.12)', iconColor: 'var(--neon-green)', href: user ? '/interview/new' : '/signup' },
+              { Icon: Video,  title: 'Video Avatar',  desc: 'Face-to-face with Tavus',    badge: 'Premium', badgeClass: 'badge-cyan',  glow: 'rgba(0,229,255,0.08)',  border: 'rgba(0,229,255,0.15)',  iconColor: 'var(--neon-cyan)', href: user ? '/interview/new' : '/signup' },
               { Icon: Users,  title: 'Human Coach',   desc: '1-on-1 with a real engineer',badge: 'Human', badgeClass: 'badge-purple',  glow: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.18)', iconColor: '#A78BFA', href: '/mentors-public' },
             ].map(({ Icon, title, desc, badge, badgeClass, glow, border, iconColor, href }) => (
               <Link key={title} href={href} className="card card-hover rounded-2xl p-6 block transition-transform hover:-translate-y-1" style={{ background: glow, border: `1px solid ${border}` }}>
@@ -276,7 +449,7 @@ export default function LandingPage() {
             <h2 className="font-bold text-white mb-4" style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)' }}>Everything you need to land the job</h2>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map(({ Icon, title, desc }) => (
+            {platformFeatures.map(({ Icon, title, desc }) => (
               <div key={title} className="card card-hover rounded-2xl p-6">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ background: 'rgba(0,255,102,0.1)' }}>
                   <Icon className="w-5 h-5" style={{ color: 'var(--neon-green)' }} />
@@ -314,7 +487,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Mentors Showcase ───────────────────────────────────────────────── */}
+      {/* ── Dynamic Mentors Showcase (Fetched directly from Supabase DB) ───── */}
       <section id="mentors" className="section">
         <div className="container-page">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 gap-4">
@@ -328,30 +501,33 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {mentors.map(({ name, role, company, rating, sessions, specialties, avatar }) => (
-              <div key={name} className="card card-hover rounded-2xl p-6 flex flex-col" style={{ border: '1px solid rgba(124,58,237,0.15)' }}>
-                {/* Avatar */}
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 font-black text-lg" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.3), rgba(0,229,255,0.3))', color: 'white' }}>
-                  {avatar}
-                </div>
-                <h3 className="font-bold text-white">{name}</h3>
-                <p className="text-xs mt-0.5 mb-1" style={{ color: 'var(--text-secondary)' }}>{role}</p>
-                <p className="text-xs mb-3" style={{ color: '#A78BFA' }}>{company}</p>
+            {mentors.map(({ id, name, role, company, rating, sessions, rate, specialties, avatar, initials }) => (
+              <div key={id} className="card card-hover rounded-2xl p-6 flex flex-col" style={{ border: '1px solid rgba(124,58,237,0.15)' }}>
+                {avatar ? (
+                  <img src={avatar} alt={name} className="w-14 h-14 rounded-2xl object-cover mb-4 shrink-0" />
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 font-black text-lg shrink-0" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.3), rgba(0,229,255,0.3))', color: 'white' }}>
+                    {initials}
+                  </div>
+                )}
+                <h3 className="font-bold text-white truncate">{name}</h3>
+                <p className="text-xs mt-0.5 mb-1 truncate" style={{ color: 'var(--text-secondary)' }}>{role}</p>
+                <p className="text-xs mb-3 truncate" style={{ color: '#A78BFA' }}>{company}</p>
                 <div className="flex items-center gap-3 mb-4 text-xs" style={{ color: 'var(--text-muted)' }}>
                   <span className="flex items-center gap-1">
-                    <Star className="w-3 h-3" style={{ color: '#FBBF24' }} /> {rating}
+                    <Star className="w-3 h-3 fill-current" style={{ color: '#FBBF24' }} /> {typeof rating === 'number' ? rating.toFixed(1) : rating}
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" /> {sessions} sessions
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-4 flex-1">
-                  {specialties.map((s) => (
+                  {specialties.slice(0, 4).map((s: string) => (
                     <span key={s} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgba(124,58,237,0.12)', color: '#A78BFA' }}>{s}</span>
                   ))}
                 </div>
-                <Link href="/signup" className="btn-ghost text-xs py-2 w-full justify-center">
-                  Book Session
+                <Link href={user ? `/mentors` : '/signup'} className="btn-ghost text-xs py-2 w-full justify-center">
+                  Book Session (${rate}/h)
                 </Link>
               </div>
             ))}
@@ -440,7 +616,7 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href={href} className={`${ctaClass} w-full justify-center text-center`}>
+                <Link href={user ? dashboardUrl : href} className={`${ctaClass} w-full justify-center text-center`}>
                   {cta}
                 </Link>
               </div>
@@ -459,8 +635,8 @@ export default function LandingPage() {
               Join 500+ Palestinian engineers who are interview-ready and confident.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center relative">
-              <Link href="/signup" className="btn-neon-green" style={{ padding: '0.9rem 2.5rem', fontSize: '1.125rem' }}>
-                Start Free Today
+              <Link href={user ? '/interview/new' : '/signup'} className="btn-neon-green" style={{ padding: '0.9rem 2.5rem', fontSize: '1.125rem' }}>
+                Start Practice Now
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <Link href="/mentors-public" className="btn-ghost" style={{ padding: '0.9rem 2.5rem', fontSize: '1.125rem' }}>
@@ -495,7 +671,7 @@ export default function LandingPage() {
             <div>
               <h4 className="text-sm font-semibold text-white mb-3">Community</h4>
               <ul className="space-y-2">
-                {[{ label: 'Mentors', href: '/mentors-public' }, { label: 'Companies', href: '/companies' }, { label: 'Sign Up', href: '/signup' }].map((item) => (
+                {[{ label: 'Mentors', href: '/mentors-public' }, { label: 'Companies', href: '/companies' }, { label: user ? 'Dashboard' : 'Sign Up', href: user ? dashboardUrl : '/signup' }].map((item) => (
                   <li key={item.label}><Link href={item.href} className="text-xs hover:text-white transition-colors" style={{ color: 'var(--text-muted)' }}>{item.label}</Link></li>
                 ))}
               </ul>
