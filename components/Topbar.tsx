@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   ChevronRight, LayoutDashboard, PanelLeft, Settings, Calendar,
-  DollarSign, User, Shield, Video, Users, CreditCard, HelpCircle
+  DollarSign, User, Shield, Video, Users, CreditCard, HelpCircle, Clock, Sparkles
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
@@ -16,9 +17,21 @@ interface Breadcrumb {
 
 export default function Topbar() {
   const pathname = usePathname();
+  const [currentTime, setCurrentTime] = useState<string>('');
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      setCurrentTime(
+        now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      );
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getBreadcrumbs = (): Breadcrumb[] => {
-    // Mentor Routes
     if (pathname.startsWith('/mentor')) {
       if (pathname === '/mentor/dashboard') {
         return [{ label: 'Mentor Dashboard', href: '/mentor/dashboard', Icon: LayoutDashboard }];
@@ -38,12 +51,10 @@ export default function Topbar() {
       ];
     }
 
-    // Admin Routes
     if (pathname.startsWith('/admin')) {
       return [{ label: 'Admin Panel', href: '/admin/dashboard', Icon: Shield }];
     }
 
-    // Room Route
     if (pathname.startsWith('/room/')) {
       return [
         { label: 'Dashboard', href: '/dashboard', Icon: LayoutDashboard },
@@ -51,7 +62,6 @@ export default function Topbar() {
       ];
     }
 
-    // Candidate Routes
     const candidateSubPages: Record<string, { label: string; Icon: React.ElementType }> = {
       '/dashboard':     { label: 'Dashboard', Icon: LayoutDashboard },
       '/interview/new': { label: 'New AI Interview', Icon: Video },
@@ -81,18 +91,18 @@ export default function Topbar() {
   const toggleSidebar = () => window.dispatchEvent(new Event('toggle-sidebar'));
 
   return (
-    <header className="topbar px-4 py-3 bg-black/40 border-b border-white/10 flex items-center justify-between backdrop-blur-md sticky top-0 z-30">
-      {/* Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs">
+    <header className="topbar px-4 sm:px-6 py-2.5 bg-black/50 border-b border-white/[0.08] flex items-center justify-between backdrop-blur-xl sticky top-0 z-30 transition-all">
+      {/* Left: Sidebar Toggle & Breadcrumbs */}
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2.5 text-xs">
         <button
           onClick={toggleSidebar}
-          className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-text-secondary hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.04] border border-white/10 text-text-secondary hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer shadow-sm"
           title="Toggle sidebar"
         >
           <PanelLeft className="w-4 h-4" />
         </button>
 
-        <div className="flex items-center gap-1.5 bg-white/[0.03] px-3 py-1.5 rounded-xl border border-white/[0.08]">
+        <div className="flex items-center gap-1.5 bg-white/[0.03] px-3 py-1.5 rounded-xl border border-white/[0.07] shadow-inner">
           {breadcrumbs.map((crumb, i) => {
             const isLast = i === breadcrumbs.length - 1;
             const Icon = crumb.Icon;
@@ -121,10 +131,20 @@ export default function Topbar() {
         </div>
       </nav>
 
-      {/* Notifications Right Bar */}
+      {/* Right: Live Time Badge & Notification Bell */}
       <div className="flex items-center gap-3">
+        {currentTime && (
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-white/[0.03] border border-white/[0.08] text-text-secondary">
+            <Clock className="w-3.5 h-3.5 text-neon-cyan" />
+            <span>{currentTime}</span>
+          </div>
+        )}
+
+        <div className="h-4 w-px bg-white/10 hidden sm:block" />
+
         <NotificationBell />
       </div>
     </header>
   );
 }
+

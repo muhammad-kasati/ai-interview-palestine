@@ -250,6 +250,154 @@ export default function MentorEarningsClient({
         </div>
       </section>
 
+      {/* ── Additional Analytics: Status Breakdown & Efficiency ── */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Session Status Distribution Donut Chart */}
+        <div className="card rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Filter className="w-4 h-4 text-neon-cyan" /> Session Status Breakdown
+            </h3>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Distribution of your session requests and fulfillment rates.
+            </p>
+          </div>
+
+          <div className="py-6 flex items-center justify-around gap-4">
+            {/* SVG Donut Chart */}
+            {(() => {
+              const total = bookings.length || 1;
+              const completedPct = Math.round((completedBookings.length / total) * 100);
+              const confirmedCount = bookings.filter((b) => b.status === 'confirmed').length;
+              const confirmedPct = Math.round((confirmedCount / total) * 100);
+              const pendingCount = bookings.filter((b) => b.status === 'pending').length;
+              const pendingPct = Math.max(0, 100 - completedPct - confirmedPct);
+
+              return (
+                <>
+                  <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
+                    <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                      {/* Background ring */}
+                      <path
+                        className="text-white/10 stroke-current"
+                        strokeWidth="3.8"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                      {/* Completed arc (Green) */}
+                      <path
+                        className="text-neon-green stroke-current transition-all duration-500"
+                        strokeDasharray={`${completedPct}, 100`}
+                        strokeWidth="3.8"
+                        strokeLinecap="round"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                      {/* Confirmed arc (Cyan) */}
+                      <path
+                        className="text-neon-cyan stroke-current transition-all duration-500"
+                        strokeDasharray={`${confirmedPct}, 100`}
+                        strokeDashoffset={`-${completedPct}`}
+                        strokeWidth="3.8"
+                        strokeLinecap="round"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-xl font-black text-white font-mono">{bookings.length}</span>
+                      <span className="text-[10px] text-text-muted">Total Booked</span>
+                    </div>
+                  </div>
+
+                  {/* Legend & Count Details */}
+                  <div className="space-y-2.5 text-xs flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-text-secondary">
+                        <span className="w-2.5 h-2.5 rounded-full bg-neon-green inline-block" />
+                        Completed
+                      </span>
+                      <span className="font-mono font-bold text-white">{completedBookings.length} ({completedPct}%)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-text-secondary">
+                        <span className="w-2.5 h-2.5 rounded-full bg-neon-cyan inline-block" />
+                        Confirmed
+                      </span>
+                      <span className="font-mono font-bold text-white">{confirmedCount} ({confirmedPct}%)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-text-secondary">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+                        Pending
+                      </span>
+                      <span className="font-mono font-bold text-white">{pendingCount} ({pendingPct}%)</span>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Financial Performance Metrics Card */}
+        <div className="card rounded-2xl p-6 border border-white/10 flex flex-col justify-between space-y-4">
+          <div>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-neon-green" /> Key Performance Analytics
+            </h3>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Fulfillment statistics and session conversion insights.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Fulfillment Rate Bar */}
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-text-secondary font-medium">Session Completion Rate</span>
+                <span className="font-mono font-bold text-neon-green">
+                  {bookings.length > 0 ? Math.round((completedBookings.length / bookings.length) * 100) : 100}%
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-neon-green to-neon-cyan rounded-full transition-all duration-500"
+                  style={{
+                    width: `${bookings.length > 0 ? Math.round((completedBookings.length / bookings.length) * 100) : 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Average Revenue Per Session Bar */}
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-text-secondary font-medium">Effective Hourly Earnings</span>
+                <span className="font-mono font-bold text-neon-cyan">${hourlyRate}/hr</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full bg-neon-cyan rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, (hourlyRate / 150) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+            <span className="text-text-muted">Top Earning Month</span>
+            <span className="font-bold text-white font-mono">
+              {(() => {
+                const best = chartData.reduce((prev, curr) => (curr.earnings > prev.earnings ? curr : prev), chartData[0]);
+                return best && best.earnings > 0 ? `${best.monthLabel} ($${best.earnings.toFixed(0)})` : 'N/A';
+              })()}
+            </span>
+          </div>
+        </div>
+      </section>
+
+
       {/* Detailed Financial Statement Table */}
       <section className="card rounded-2xl overflow-hidden border border-white/10">
         <div className="p-5 flex flex-col sm:flex-row gap-3 justify-between sm:items-center border-b border-white/10">
